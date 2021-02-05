@@ -9,7 +9,7 @@
 ### 单用户懒人版
 #### - 1.打开[腾讯云云函数](https://console.cloud.tencent.com/scf)并扫码登录,完成实名认证
 #### - 2.进入层，选择新建层 ![avatar](./tutorial/新建层1.png)
-#### - 3.将项目中的Packages.zip(可以在release中下载，直接clone后用项目中的也可以)上传到层中，运行环境选择python3.6 ![avatar](./tutorial/新建层2.png)
+#### - 3.将项目中的Packages.zip(可以在[release](https://github.com/F-19-F/SWU-CpDaily/releases/tag/1.1)中下载，clone后用项目中的也可以)上传到层中，运行环境选择python3.6 ![avatar](./tutorial/新建层2.png)
 #### - 4.进入函数服务，选择新建 ![avatar](./tutorial/新建函数0.png)
 #### - 5.按照图设置好，名称自己定，运行环境选择python3.6 ![avatar](./tutorial/新建函数1.png)
 #### - 5.在在线代码编辑器中将项目的index.py上传，可以直接复制内容,并将代码中对应部分换成你的学号和身份证后6位 ![avatar](./tutorial/新建函数2.png)
