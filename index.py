@@ -64,7 +64,7 @@ if 'CLOUDPASSWORD' in locals().keys():
 if 'CLOUDDELAY' in locals().keys():
     DELAY=locals().get('CLOUDDELAY')
 if 'CLOUDPUSHTOKEN' in locals().keys():
-    CLOUDPUSHTOKEN=locals().get('CLOUDPUSHTOKEN')
+    PUSHPLUS_token=locals().get('CLOUDPUSHTOKEN')
 if 'CLOUDAPP_ID' in locals().keys():
     APP_ID=locals().get('CLOUDAPP_ID')
 if 'CLOUDAPI_KEY' in locals().keys():
