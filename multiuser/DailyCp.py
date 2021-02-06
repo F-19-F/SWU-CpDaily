@@ -2,6 +2,7 @@
 import requests
 from datetime import datetime, timedelta, timezone
 from pyDes import des, CBC, PAD_PKCS5
+import urllib.parse as up
 from aip import AipOcr
 import base64
 import sys
@@ -76,6 +77,7 @@ class Util: #统一的类
             file = open(file_path, 'r', encoding="utf-8")
         except:
             Util.log("使用前请先配置config.json,运行Config.py")
+            exit(-1)
         file_data = file.read()
         file.close()
         return json.loads(file_data)
@@ -84,6 +86,7 @@ class Util: #统一的类
         result={}
         form=re.findall(r'<form.*?>(.*?)</form>',htmlsrc,re.DOTALL)
         if len(form)<1:
+            Util.log("登录表单异常")
             return None
         form=form[0]
         #使用正则表达式匹配表单选项，减少对第三方库的依赖
@@ -112,6 +115,15 @@ class Util: #统一的类
         text=text.replace(' ','')
         return text
     @staticmethod
+    def CookDict2Str(cookdic):
+        k=len(cookdic)
+        cookiestr=''
+        for i,cookie in enumerate(cookdic):
+            cookiestr=cookiestr+cookie+'='+cookdic[cookie]
+            if i < k-1:
+                cookiestr=cookiestr+';'
+        return cookiestr
+    @staticmethod
     def Login(user, apis):
         loginurl=apis['login-url']
         #解析login-url中的协议和host
@@ -129,20 +141,26 @@ class Util: #统一的类
             'Accept-Language': 'zh-CN,en-US;q=0.8',
             'X-Requested-With': 'com.wisedu.cpdaily'
         }
+        #session存放最终cookies
         session=requests.Session()
+        #poster发送中间POST请求,用于处理特殊cookie
+        poster=requests.urllib3.PoolManager()
         #SWU在网页这里没有直接放加密盐值
         res=session.get(url=loginurl,headers=headers)
+        #存储cookies
+        cookies=requests.utils.dict_from_cookiejar(session.cookies)
         PostUrl=re.findall('action=\"(.*?)\"',res.text)[0]
         PostUrl=protocol+"://"+host+PostUrl
         Params=Util.GetLoginParams(res.text)
         Params['username']=user['username']
         Params['password']=user['password']
-        PostHeaders=headers
-        PostHeaders['Content-Type']='application/x-www-form-urlencoded'
+        LoginHeaders=headers
+        LoginHeaders['Content-Type']='application/x-www-form-urlencoded'
+        LoginHeaders['cookie']=Util.CookDict2Str(cookies)
         #判断是否需要验证码
         needcaptchaUrl='{}://{}/authserver/needCaptcha.html'.format(protocol,host)
-        res=session.get(url='{}?username={}'.format(needcaptchaUrl,user['username']),headers=headers)
         captchaUrl='{}://{}/authserver/captcha.html'.format(protocol,host)
+        res=session.get(url='{}?username={}'.format(needcaptchaUrl,user['username']),headers=headers)
         if 'false' in res.text:
             needCaptcha=False
         else:
@@ -156,34 +174,26 @@ class Util: #统一的类
                 if len(code) != 4:
                     continue
                 Params['captchaResponse']=code
-                res=session.post(url=loginurl,data=Params,headers=PostHeaders,allow_redirects=False)
+                res=poster.request('POST',loginurl,body=up.urlencode(Params),headers=LoginHeaders,redirect=False)
                 if 'Location' in res.headers:
                     #验证码登录成功
                     break
                 if i == MAX_Captcha_Times-1:
                     Util.log("验证码识别超过最大次数")
         else:
-            res=session.post(url=loginurl,data=Params,headers=PostHeaders,allow_redirects=False)
+            res=poster.request('POST',loginurl,body=up.urlencode(Params),headers=LoginHeaders,redirect=False)
         if 'Location' not in res.headers:
             Util.log("登录失败")
             return None
         nexturl=res.headers['Location']
-        #requests.session对于有时间限制和域名限制的SET-COOKIE无法正常识别，需手动更新
-        temp_cookiestr=res.headers['SET-COOKIE']
-        temp_cks=temp_cookiestr.split(',')
-        temp_cookies={}
-        for cookie in temp_cks:
-            #直接使用正则匹配
-            tmp=re.findall(r'([\S]*?)=([\S]*?);',cookie)
-            if len(tmp) == 0:
-                continue
-            tmp=tmp[0]
-            temp_cookies[tmp[0]]=tmp[1]
+        #requests.session对于部分SET-COOKIE无法正常识别，需手动更新
+        tmpcookies=res.headers.get_all('Set-Cookie')
+        for tmp in tmpcookies:
+            tmpcookie=re.findall('(.*?)=(.*?);',tmp)[0]
+            cookies[tmpcookie[0]]=tmpcookie[1]
         headers['host']=apis['host']
-        res=session.post(url=nexturl,headers=headers)
-        cookies=requests.utils.dict_from_cookiejar(session.cookies)
-        cookies.update(temp_cookies)
         session.cookies = requests.utils.cookiejar_from_dict(cookies, cookiejar=None, overwrite=True)
+        res=session.post(url=nexturl,headers=headers)
         return session
     @staticmethod
     #DES+base64加密
@@ -452,8 +462,9 @@ class AutoSign:
                 AutoSign.submitForm(session,submitinfo,Form,apis)
 def Do(apis,user):
     session=Util.Login(user,apis)
-    Util.log(user['username']+'登陆成功')
-    AutoSign.Go(session,apis,user)
+    if session:
+        Util.log(user['username']+'登陆成功')
+        AutoSign.Go(session,apis,user)
 def main():
     config=Util.LoadConfig()
     apis={
