@@ -48,8 +48,6 @@ API={
 MAX_Captcha_Times=20
 class Util: #统一的类
     logs=''
-    Load=False
-    config={}
     logLock=threading.Lock()
     OCRclient = None
     @staticmethod
@@ -64,7 +62,7 @@ class Util: #统一的类
         if show:
             print(Text)
         if Util.logs:
-            Util.logs=Util.logs+'\n'+Text
+            Util.logs=Util.logs+'<br>'+Text
         else:
             Util.logs=Text
         sys.stdout.flush()
@@ -281,19 +279,6 @@ class Util: #统一的类
             Util.log(res.json()['msg'])
         except:
             Util.log('发送失败')
-    #以换行符为标志来生成Html列表代码,用于发送消息
-    @staticmethod
-    def GenHtml(msgs:str):
-        items=msgs.split('\n')
-        li='<li>{}</li>'
-        sum=''
-        for item in items:
-            sum=sum+li.format(item)
-        template='''<!DOCTYPE html>
-        <body">
-        <ul>{}</ul>
-        </body>'''
-        return template.format(sum)
 #签到
 class AutoSign:
     @staticmethod
@@ -473,14 +458,14 @@ def main():
         }
     for user in config:
         Do(apis,user)
-    Util.SendMessage('签到日志',Util.GenHtml(Util.logs))
+    Util.SendMessage('签到日志',Util.logs)
 # 提供给腾讯云函数调用的启动函数
 def main_handler(event, context):
     try:
         main()
     except Exception as e:
         Util.log(traceback.format_exc(),False)
-        Util.SendMessage('出错了',Util.GenHtml(Util.logs))
+        Util.SendMessage('出错了',Util.logs)
         raise e
     else:
         return 'success'
