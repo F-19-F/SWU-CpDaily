@@ -2,6 +2,7 @@
 import requests
 from datetime import datetime, timedelta, timezone
 from pyDes import des, CBC, PAD_PKCS5
+import urllib.parse as up
 from aip import AipOcr
 from random import randint
 import base64
@@ -41,6 +42,7 @@ API={
     'Sign':{
         'GETTasks':'https://{host}/wec-counselor-sign-apps/stu/sign/getStuSignInfosInOneDay',
         'GETDetail':'https://{host}/wec-counselor-sign-apps/stu/sign/detailSignInstance',
+        'GenInfo':'https://{}/wec-counselor-sign-apps/stu/sign/getStuSignInfosByWeekMonth',
         'PicUploadUrl':'https://{host}/wec-counselor-sign-apps/stu/oss/getUploadPolicy',
         'GETPicUrl':'https://{host}/wec-counselor-sign-apps/stu/sign/previewAttachment',
         'Submit':'https://{host}/wec-counselor-sign-apps/stu/sign/submitSign'
@@ -52,8 +54,6 @@ API={
 MAX_Captcha_Times=20
 class Util: #统一的类
     logs=''
-    Load=False
-    config={}
     OCRclient = None
     @staticmethod
     def getTimeStr():
@@ -103,6 +103,15 @@ class Util: #统一的类
         text=text.replace(' ','')
         return text
     @staticmethod
+    def CookDict2Str(cookdic):
+        k=len(cookdic)
+        cookiestr=''
+        for i,cookie in enumerate(cookdic):
+            cookiestr=cookiestr+cookie+'='+cookdic[cookie]
+            if i < k-1:
+                cookiestr=cookiestr+';'
+        return cookiestr
+    @staticmethod
     def Login(user, apis):
         loginurl=apis['login-url']
         #解析login-url中的协议和host
@@ -120,20 +129,26 @@ class Util: #统一的类
             'Accept-Language': 'zh-CN,en-US;q=0.8',
             'X-Requested-With': 'com.wisedu.cpdaily'
         }
+        #session存放最终cookies
         session=requests.Session()
+        #poster发送中间POST请求,用于处理特殊cookie
+        poster=requests.urllib3.PoolManager()
         #SWU在网页这里没有直接放加密盐值
         res=session.get(url=loginurl,headers=headers)
+        #存储cookies
+        cookies=requests.utils.dict_from_cookiejar(session.cookies)
         PostUrl=re.findall('action=\"(.*?)\"',res.text)[0]
         PostUrl=protocol+"://"+host+PostUrl
         Params=Util.GetLoginParams(res.text)
         Params['username']=user['username']
         Params['password']=user['password']
-        PostHeaders=headers
-        PostHeaders['Content-Type']='application/x-www-form-urlencoded'
+        LoginHeaders=headers
+        LoginHeaders['Content-Type']='application/x-www-form-urlencoded'
+        LoginHeaders['cookie']=Util.CookDict2Str(cookies)
         #判断是否需要验证码
         needcaptchaUrl='{}://{}/authserver/needCaptcha.html'.format(protocol,host)
-        res=session.get(url='{}?username={}'.format(needcaptchaUrl,user['username']),headers=headers)
         captchaUrl='{}://{}/authserver/captcha.html'.format(protocol,host)
+        res=session.get(url='{}?username={}'.format(needcaptchaUrl,user['username']),headers=headers)
         if 'false' in res.text:
             needCaptcha=False
         else:
@@ -147,34 +162,26 @@ class Util: #统一的类
                 if len(code) != 4:
                     continue
                 Params['captchaResponse']=code
-                res=session.post(url=loginurl,data=Params,headers=PostHeaders,allow_redirects=False)
+                res=poster.request('POST',loginurl,body=up.urlencode(Params),headers=LoginHeaders,redirect=False)
                 if 'Location' in res.headers:
                     #验证码登录成功
                     break
                 if i == MAX_Captcha_Times-1:
                     Util.log("验证码识别超过最大次数")
         else:
-            res=session.post(url=loginurl,data=Params,headers=PostHeaders,allow_redirects=False)
+            res=poster.request('POST',loginurl,body=up.urlencode(Params),headers=LoginHeaders,redirect=False)
         if 'Location' not in res.headers:
             Util.log("登录失败")
             return None
         nexturl=res.headers['Location']
-        #requests.session对于有时间限制和域名限制的SET-COOKIE无法正常识别，需手动更新
-        temp_cookiestr=res.headers['SET-COOKIE']
-        temp_cks=temp_cookiestr.split(',')
-        temp_cookies={}
-        for cookie in temp_cks:
-            #直接使用正则匹配
-            tmp=re.findall(r'([\S]*?)=([\S]*?);',cookie)
-            if len(tmp) == 0:
-                continue
-            tmp=tmp[0]
-            temp_cookies[tmp[0]]=tmp[1]
+        #requests.session对于部分SET-COOKIE无法正常识别，需手动更新
+        tmpcookies=res.headers.get_all('Set-Cookie')
+        for tmp in tmpcookies:
+            tmpcookie=re.findall('(.*?)=(.*?);',tmp)[0]
+            cookies[tmpcookie[0]]=tmpcookie[1]
         headers['host']=apis['host']
-        res=session.post(url=nexturl,headers=headers)
-        cookies=requests.utils.dict_from_cookiejar(session.cookies)
-        cookies.update(temp_cookies)
         session.cookies = requests.utils.cookiejar_from_dict(cookies, cookiejar=None, overwrite=True)
+        res=session.post(url=nexturl,headers=headers)
         return session
     @staticmethod
     def GetDate(Mod='%Y-%m-%d',offset=0):
@@ -390,21 +397,18 @@ class AutoSign:
         res = session.post(url=API['Sign']['Submit'].format(host=apis['host']),headers=Util.GenHeadersWithExtension(user,apis), data=json.dumps(form))
         message = res.json()['message']
         if message == 'SUCCESS':
-            Util.log(user['username']+',自动签到成功')
+            Util.log('自动签到成功')
             return True
         else:
-            Util.log(user['username']+',自动签到失败，原因是：' + message)
+            Util.log('自动签到失败，原因是：' + message)
             return False
     @staticmethod
-    def GenInfo(username,password,apis):
-        session=Util.Login({'username':username,'password':password},apis)
-        if session == None:
-            return None
+    def GenInfo(session,user,apis):
         #获取前一天的签到信息
         data={"statisticYearMonth":Util.GetDate('%Y-%m',-86400)}
         headers=Util.GenNormalHears()
         headers['Content-Type']='application/json;charset=UTF-8'
-        res=session.post(url='https://{}/wec-counselor-sign-apps/stu/sign/getStuSignInfosByWeekMonth'.format(apis['host']),data=json.dumps(data),headers=headers)
+        res=session.post(url=API['Sign']['GenInfo'].format(apis['host']),data=json.dumps(data),headers=headers)
         signdays=res.json()['datas']['rows']
         yesterday=Util.GetDate('%Y-%m-%d',-86400)
         deviceId=''
@@ -417,8 +421,8 @@ class AutoSign:
         deviceId=deviceId+'XiaomiMI6'
         #读取前一天的签到信息
         one={
-            'username':username,
-            'password':password,
+            'username':user['username'],
+            'password':user['password'],
             'deviceId':deviceId,
         }
         for signday in signdays:
@@ -445,19 +449,19 @@ class AutoSign:
                 'photo':None,
                 'extra':extra
             }
-        return one,session
+        return one
     @staticmethod
     def Go(session,apis,user):
         tasks=AutoSign.GetTasks(session,apis)
         todotaskstype=[]
         if len(tasks['unSignedTasks']) > 0:
-            text=user['username']+'未完成的签到任务:'
+            text='未完成的签到任务:'
             for i,task in enumerate(tasks['unSignedTasks']):
                 text=text+str(i+1)+'.'+task['taskName']+' '
             Util.log(text)
             todotaskstype.append('unSignedTasks')
         if len(tasks['leaveTasks']) > 0:
-            text=user['username']+'请假的签到任务:'
+            text='请假的签到任务:'
             for i,task in enumerate(tasks['leaveTasks']):
                 text=text+str(i+1)+'.'+task['taskName']+' '
             Util.log(text)
@@ -484,7 +488,7 @@ class AutoSign:
                     continue
                 Form=AutoSign.fillForm(taskDetail,session,user,apis)
                 if t>0:
-                    Util.log(user['username']+"休眠{}s后开始签到".format(str(t)))
+                    Util.log("休眠{}s后开始签到".format(str(t)))
                     time.sleep(t)
                 submitinfo={
                     'username':user['username'],
@@ -494,8 +498,10 @@ class AutoSign:
                 }
                 AutoSign.submitForm(session,submitinfo,Form,apis)
 def Do(apis,user):
-    newuser,session=AutoSign.GenInfo(user['username'],user['password'],apis)
-    Util.log(user['username']+'登陆成功')
+    session=Util.Login(user,apis)
+    if session:
+        Util.log('登陆成功')
+    newuser=AutoSign.GenInfo(session,user,apis)
     AutoSign.Go(session,apis,newuser)
 def main():
     apis={
