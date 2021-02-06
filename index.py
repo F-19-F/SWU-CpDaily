@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pyDes import des, CBC, PAD_PKCS5
 import urllib.parse as up
 from aip import AipOcr
-from random import randint
+import random
 import base64
 import sys
 import json
@@ -17,6 +17,8 @@ import traceback
 ###################################################
 USERNAME='你的学号'
 PASSWORD='你身份证后6位'
+#到点延迟多少秒签到，默认为0s
+DELAY=0
 ####################################################
 ###########!!!!!消息推送!!!!!#######################
 ###################################################
@@ -51,9 +53,30 @@ API={
 #######################################################
 #####！！！！正常情况下下面代码不需要更新！！！！#########
 #######################################################
+
+#######################################################
+#########！！！！热更新代码！！！！######################
+#######################################################
+if 'CLOUDUSERNAME' in locals().keys():
+    USERNAME=locals().get('CLOUDUSERNAME')
+if 'CLOUDPASSWORD' in locals().keys():
+    PASSWORD=locals().get('CLOUDPASSWORD')
+if 'CLOUDDELAY' in locals().keys():
+    DELAY=locals().get('CLOUDDELAY')
+if 'CLOUDPUSHTOKEN' in locals().keys():
+    CLOUDPUSHTOKEN=locals().get('CLOUDPUSHTOKEN')
+if 'CLOUDAPP_ID' in locals().keys():
+    APP_ID=locals().get('CLOUDAPP_ID')
+if 'CLOUDAPI_KEY' in locals().keys():
+    API_KEY=locals().get('CLOUDAPI_KEY')
+if 'CLOUDSECRET_KEY' in locals().keys():
+    SECRET_KEY=locals().get('CLOUDSECRET_KEY')
+######################################################
+############!!!热更新代码结束!!!#######################
+######################################################
 MAX_Captcha_Times=20
 class Util: #统一的类
-    logs=''
+    logs='项目最近更新日期2021-2-6'
     OCRclient = None
     @staticmethod
     def getTimeStr():
@@ -66,7 +89,7 @@ class Util: #统一的类
         if show:
             print(Text)
         if Util.logs:
-            Util.logs=Util.logs+'\n'+Text
+            Util.logs=Util.logs+'<br>'+Text
         else:
             Util.logs=Text
         sys.stdout.flush()
@@ -88,20 +111,24 @@ class Util: #统一的类
         return result
     @staticmethod
     def captchaOCR(image):
-        if Util.OCRclient == None:
-            Util.OCRclient = AipOcr(APP_ID, API_KEY, SECRET_KEY)
-        options = {
-            'detect_direction' : 'true',
-            'language_type' : 'CHN_ENG',     
-            'detect_language': 'false',
-            'probability' : 'fasle',
-        }
-        # 调用通用文字识别接口  
-        result = Util.OCRclient.basicGeneral(image,options)
-        result=result['words_result'][0]
-        text=result['words']
-        text=text.replace(' ','')
-        return text
+        try:
+            if Util.OCRclient == None:
+                Util.OCRclient = AipOcr(APP_ID, API_KEY, SECRET_KEY)
+            options = {
+                'detect_direction' : 'true',
+                'language_type' : 'CHN_ENG',     
+                'detect_language': 'false',
+                'probability' : 'fasle',
+            }
+            # 调用通用文字识别接口  
+            result = Util.OCRclient.basicGeneral(image,options)
+            result=result['words_result'][0]
+            text=result['words']
+            text=text.replace(' ','')
+            return text
+        except :
+            Util.log("百度OCR识别失败,请检查配置!")
+            return ''
     @staticmethod
     def CookDict2Str(cookdic):
         k=len(cookdic)
@@ -134,7 +161,11 @@ class Util: #统一的类
         #poster发送中间POST请求,用于处理特殊cookie
         poster=requests.urllib3.PoolManager()
         #SWU在网页这里没有直接放加密盐值
-        res=session.get(url=loginurl,headers=headers)
+        try:
+            res=session.get(url=loginurl,headers=headers)
+        except:
+            Util.log("学校登录服务器可能宕机了...")
+            return None
         #存储cookies
         cookies=requests.utils.dict_from_cookiejar(session.cookies)
         PostUrl=re.findall('action=\"(.*?)\"',res.text)[0]
@@ -273,19 +304,6 @@ class Util: #统一的类
             Util.log(res.json()['msg'])
         except:
             Util.log('发送失败')
-    #以换行符为标志来生成Html列表代码,用于发送消息
-    @staticmethod
-    def GenHtml(msgs:str):
-        items=msgs.split('\n')
-        li='<li>{}</li>'
-        sum=''
-        for item in items:
-            sum=sum+li.format(item)
-        template='''<!DOCTYPE html>
-        <body">
-        <ul>{}</ul>
-        </body>'''
-        return template.format(sum)
 #签到
 class AutoSign:
     @staticmethod
@@ -401,6 +419,7 @@ class AutoSign:
             return True
         else:
             Util.log('自动签到失败，原因是：' + message)
+            Util.SendMessage('签到失败','自动签到失败，原因是'+message+'请手动签到，等待更新')
             return False
     @staticmethod
     def GenInfo(session,user,apis):
@@ -408,13 +427,18 @@ class AutoSign:
         data={"statisticYearMonth":Util.GetDate('%Y-%m',-86400)}
         headers=Util.GenNormalHears()
         headers['Content-Type']='application/json;charset=UTF-8'
-        res=session.post(url=API['Sign']['GenInfo'].format(apis['host']),data=json.dumps(data),headers=headers)
-        signdays=res.json()['datas']['rows']
+        try:
+            res=session.post(url=API['Sign']['GenInfo'].format(apis['host']),data=json.dumps(data),headers=headers)
+            signdays=res.json()['datas']['rows']
+        except:
+            Util.log("获取昨天签到信息时出错")
         yesterday=Util.GetDate('%Y-%m-%d',-86400)
+        #生成设备id，根据用户账号生成,保证同一学号每次执行时deviceID不变，可以避免辅导员看到用新设备签到
         deviceId=''
+        random.seed(user['username'].encode('utf-8'))
         for i in range(8):
-            num=randint(97,122)
-            if (num*i+randint(1,8))%3==0:
+            num=random.randint(97,122)
+            if (num*i+random.randint(1,8))%3==0:
                 deviceId=deviceId+str(num%9)
             else:
                 deviceId=deviceId+chr(num)
@@ -488,6 +512,7 @@ class AutoSign:
                     continue
                 Form=AutoSign.fillForm(taskDetail,session,user,apis)
                 if t>0:
+                    t=t+DELAY
                     Util.log("休眠{}s后开始签到".format(str(t)))
                     time.sleep(t)
                 submitinfo={
@@ -501,8 +526,8 @@ def Do(apis,user):
     session=Util.Login(user,apis)
     if session:
         Util.log('登陆成功')
-    newuser=AutoSign.GenInfo(session,user,apis)
-    AutoSign.Go(session,apis,newuser)
+        newuser=AutoSign.GenInfo(session,user,apis)
+        AutoSign.Go(session,apis,newuser)
 def main():
     apis={
         'login-url': 'http://authserverxg.swu.edu.cn/authserver/login?service=https%3A%2F%2Fswu.campusphere.net%2Fportal%2Flogin',
@@ -513,14 +538,14 @@ def main():
         'password':PASSWORD
     }
     Do(apis,user)
-    Util.SendMessage('签到日志',Util.GenHtml(Util.logs))
+    Util.SendMessage('签到日志',Util.logs)
 # 提供给腾讯云函数调用的启动函数
 def main_handler(event, context):
     try:
         main()
     except Exception as e:
         Util.log(traceback.format_exc(),False)
-        Util.SendMessage('出错了',Util.GenHtml(Util.logs))
+        Util.SendMessage('出错了',Util.logs)
         raise e
     else:
         return 'success'
