@@ -35,7 +35,7 @@ SECRET_KEY = '你的SECRET_KEY'
 #################!!!!DES加密密钥!!!!###################
 #######################################################
 DESKEY='b3L26XNL'
-APPVERSION='8.2.14'
+APPVERSION='8.2.20'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
 #######################################################
@@ -44,10 +44,18 @@ API={
     'Sign':{
         'GETTasks':'https://{host}/wec-counselor-sign-apps/stu/sign/getStuSignInfosInOneDay',
         'GETDetail':'https://{host}/wec-counselor-sign-apps/stu/sign/detailSignInstance',
-        'GenInfo':'https://{}/wec-counselor-sign-apps/stu/sign/getStuSignInfosByWeekMonth',
+        'GenInfo':'https://{host}/wec-counselor-sign-apps/stu/sign/getStuSignInfosByWeekMonth',
         'PicUploadUrl':'https://{host}/wec-counselor-sign-apps/stu/oss/getUploadPolicy',
         'GETPicUrl':'https://{host}/wec-counselor-sign-apps/stu/sign/previewAttachment',
         'Submit':'https://{host}/wec-counselor-sign-apps/stu/sign/submitSign'
+    },
+    'Attendance':{
+        'GETTasks':'https://{host}/wec-counselor-attendance-apps/student/attendance/getStuAttendacesInOneDay',
+        'GETDetail':'https://{host}/wec-counselor-attendance-apps/student/attendance/detailSignInstance',
+        'GenInfo':'https://{host}/wec-counselor-attendance-apps/student/attendance/getStuSignInfosByWeekMonth',
+        'PicUploadUrl':'https://{host}/wec-counselor-attendance-apps/student/attendance/getStsAccess',
+        'GETPicUrl':'https://{host}/wec-counselor-attendance-apps/student/attendance/previewAttachment',
+        'Submit':'https://{host}/wec-counselor-attendance-apps/student/attendance/submitSign'
     }
 }
 #######################################################
@@ -76,16 +84,16 @@ if 'CLOUDSECRET_KEY' in locals().keys():
 ######################################################
 MAX_Captcha_Times=20
 class Util: #统一的类
-    logs='项目最近更新日期2021-2-6'
+    logs='项目最近更新日期2021-2-23，添加了查寝，更新APP模拟版本为8.2.20'
     OCRclient = None
     @staticmethod
-    def getTimeStr():
+    def GetDate(Mod='%Y-%m-%d %H:%M:%S',offset=0):
         utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
-        bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8)))
-        return bj_dt.strftime("%Y-%m-%d %H:%M:%S")
+        bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8,seconds=offset)))
+        return bj_dt.strftime(Mod)
     @staticmethod
     def log(content,show=True):
-        Text=Util.getTimeStr() + ' ' + str(content)
+        Text=Util.GetDate() + ' ' + str(content)
         if show:
             print(Text)
         if Util.logs:
@@ -139,8 +147,8 @@ class Util: #统一的类
                 cookiestr=cookiestr+';'
         return cookiestr
     @staticmethod
-    def Login(user, apis):
-        loginurl=apis['login-url']
+    def Login(user, School_Server_API):
+        loginurl=School_Server_API['login-url']
         #解析login-url中的协议和host
         info=re.findall('(.*?)://(.*?)/',loginurl)[0]
         protocol=info[0]
@@ -210,14 +218,10 @@ class Util: #统一的类
         for tmp in tmpcookies:
             tmpcookie=re.findall('(.*?)=(.*?);',tmp)[0]
             cookies[tmpcookie[0]]=tmpcookie[1]
-        headers['host']=apis['host']
+        headers['host']=School_Server_API['host']
         session.cookies = requests.utils.cookiejar_from_dict(cookies, cookiejar=None, overwrite=True)
         res=session.post(url=nexturl,headers=headers)
         return session
-    @staticmethod
-    def GetDate(Mod='%Y-%m-%d',offset=0):
-        date = time.strftime(Mod,time.localtime(time.time()+offset))
-        return date
     @staticmethod
     #DES+base64加密
     def DESEncrypt(s,Key=DESKEY):
@@ -227,7 +231,7 @@ class Util: #统一的类
         return base64.b64encode(encrypt_str).decode()
     @staticmethod
     #生成带有extension的headers
-    def GenHeadersWithExtension(user,apis):
+    def GenHeadersWithExtension(user,School_Server_API):
         # Cpdaily-Extension
         extension = {
             "systemName": "android",
@@ -245,19 +249,20 @@ class Util: #统一的类
             'Cpdaily-Extension': Util.DESEncrypt(json.dumps(extension)),
             'extension': '1',
             'Content-Type': 'application/json; charset=utf-8',
-            'Host': apis['host'],
+            'Host': School_Server_API['host'],
             'Connection': 'Keep-Alive',
             'Accept-Encoding': 'gzip',
         }
         return headers
     @staticmethod
-    #生成正常请求的headers
-    def GenNormalHears():
+    #生成正常POST请求的headers
+    def GenNormalHears(School_Server_API):
         headers = {
+            'Host':School_Server_API['host'],
             'Accept': 'application/json, text/plain, */*',
             'X-Requested-With': 'XMLHttpRequest',
             'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/8.2.14 wisedu/8.2.14',
-            'Content-Type': 'application/json;charset=UTF-8',
+            'Content-Type': 'application/json',
             'Accept-Encoding': 'gzip,deflate',
             'Accept-Language': 'zh-CN,en-US;q=0.8',
         }
@@ -304,33 +309,84 @@ class Util: #统一的类
             Util.log(res.json()['msg'])
         except:
             Util.log('发送失败')
-#签到
-class AutoSign:
     @staticmethod
-    def GetTasks(session,apis):
-        res=session.post(url=API['Sign']['GETTasks'].format(host=apis['host']),headers=Util.GenNormalHears(), data=json.dumps({}))
+    def GenDeviceID(username):
+        #生成设备id，根据用户账号生成,保证同一学号每次执行时deviceID不变，可以避免辅导员看到用新设备签到
+        deviceId=''
+        random.seed(username.encode('utf-8'))
+        for i in range(8):
+            num=random.randint(97,122)
+            if (num*i+random.randint(1,8))%3==0:
+                deviceId=deviceId+str(num%9)
+            else:
+                deviceId=deviceId+chr(num)
+        deviceId=deviceId+'XiaomiMI6'
+        return deviceId
+#任务模板，签到和查寝均继承模板
+class TaskModel:
+    def __init__(self,TaskType,School_Server_API,Showname,session,userBaseInfo):
+        self.API=API[TaskType]
+        self.Showname=Showname
+        self.School_Server_API=School_Server_API
+        self.session=session
+        self.userBaseInfo=userBaseInfo
+    def UpdateInfo(self,session,userBaseInfo,School_Server_API=None):
+        #更新数据
+        self.session=session
+        self.userBaseInfo=userBaseInfo
+        if School_Server_API:
+            School_Server_API=School_Server_API
+    def GetTasks(self):
+        res=self.session.post(
+            url=self.API['GETTasks'].format(host=self.School_Server_API['host']),
+            headers=Util.GenNormalHears(self.School_Server_API),
+            data=json.dumps({})
+            )
         res=res.json()
         if res['message'] == 'SUCCESS':
-            #print(res)
             return res['datas']
         else:
-            Util.log('获取签到任务时出错,原因是'+res['message'])
+            Util.log('获取{}任务时出错,原因是'.format(self.Showname)+res['message'])
             return None
-    @staticmethod
-    def GetDetailTask(session,params,apis):
-        res = session.post(url=API['Sign']['GETDetail'].format(host=apis['host']),headers=Util.GenNormalHears(), data=json.dumps(params))
-        #print(res.text)
+    def GetDetailTask(self,params):
+        res = self.session.post(
+            url=self.API['GETDetail'].format(host=self.School_Server_API['host']),
+            headers=Util.GenNormalHears(self.School_Server_API),
+            data=json.dumps(params))
         res=res.json()
         if res['message'] == 'SUCCESS':
             return res['datas']
         else:
-            Util.log('获取签到任务详情时出错,原因是'+res['message'])
+            Util.log('获取{}任务详情时出错,原因是'.format(self.Showname)+res['message'])
             return None
-    # 上传图片到阿里云oss
-    @staticmethod
-    def uploadPicture(session, image, apis):
-        url = API['Sign']['PicUploadUrl'].format(host=apis['host'])
-        res = session.post(url=url, headers={'content-type': 'application/json'}, data=json.dumps({'fileType':1}))
+    def GetSignedInfo(self):
+        #获取前一天的签到信息
+        data={"statisticYearMonth":Util.GetDate('%Y-%m',-86400)}
+        headers=Util.GenNormalHears(self.School_Server_API)
+        try:
+            res=self.session.post(url=self.API['GenInfo'].format(host=self.School_Server_API['host']),data=json.dumps(data),headers=headers)
+            signdays=res.json()['datas']['rows']
+        except:
+            Util.log("获取昨天签到信息时出错")
+            return None
+        yesterday=Util.GetDate('%Y-%m-%d',-86400)
+        for signday in signdays:
+            if signday['dayInMonth'] == yesterday:
+                yesterday_info=signday
+                break
+        yesterday_signed=yesterday_info['signedTasks']
+        params={}
+        signedTasksInfo=[]
+        for task in yesterday_signed:
+            params['signInstanceWid']=task['signInstanceWid']
+            params['signWid']=task['signWid']
+            info=self.GetDetailTask(params)
+            if info:
+                signedTasksInfo.append(info)
+        return signedTasksInfo
+    def uploadPicture(self,image):
+        url = self.API['PicUploadUrl'].format(host=self.School_Server_API['host'])
+        res = self.session.post(url=url, headers={'content-type': 'application/json'}, data=json.dumps({'fileType':1}))
         datas = res.json().get('datas')
         fileName = datas.get('fileName') + '.png'
         accessKeyId = datas.get('accessid')
@@ -349,29 +405,57 @@ class AutoSign:
         data_file = {
             'file':('blob',open(image,'rb'),'image/jpg')
         }
-        res = session.post(url=url,data=data,files=data_file)
+        res = self.session.post(url=url,data=data,files=data_file)
         if(res.status_code == 200):
             return fileName
         return fileName
-    # 获取图片上传位置
-    @staticmethod
-    def getPictureUrl(session, fileName, apis):
-        url = API['Sign']['GETPicUrl'].format(host=apis['host'])
+    def getPictureUrl(self,fileName):
+        url = self.API['GETPicUrl'].format(host=self.School_Server_API['host'])
         data = {
             'ossKey': fileName
         }
-        res = session.post(url=url, headers={'content-type': 'application/json'}, data=json.dumps(data))
+        res = self.session.post(url=url, headers={'content-type': 'application/json'}, data=json.dumps(data))
         photoUrl = res.json().get('datas')
         return photoUrl
-    @staticmethod
-    def fillForm(task, session, user, apis):
+    #模板下面的函数根据对应任务实现
+    def GenConfig(self,signedTasksInfo):
+        pass
+    def fillForm(self,task,config):
+        pass
+    def submitForm(self,config):
+        pass
+    def Go(self,session=None,userBaseInfo=None,config=None,School_Server_API=None):
+        pass
+#签到
+class Sign(TaskModel):
+    def __init__(self,School_Server_API,session,userBaseInfo):
+        super().__init__('Sign',School_Server_API,'签到',session,userBaseInfo)
+    def GenConfig(self,signedTasksInfo):
+        config={}
+        for info in signedTasksInfo:
+            extra={}
+            for item in info['signedStuInfo']['extraFieldItemVos']:
+                if item['isExtraFieldOtherItem'] == '1':
+                    extra[item['extraTitle']]=[item['extraFieldItem'],item['ExtraFieldOtherItem']]
+                else:
+                    extra[item['extraTitle']]=[item['extraFieldItem']]
+            config[info['taskName']]={
+                'address':info['signAddress'],
+                'lon':info['longitude'],
+                'lat':info['latitude'],
+                'abnormalReason':'',
+                'photo':None,
+                'extra':extra
+            }
+        return config
+    def fillForm(self,task,config):
         form = {}
-        user=user[task['taskName']]
+        config=config[task['taskName']]
         #判断是否需要提交图片
         if task['isPhoto'] == 1:
-            if user['photo'] != '':
-                fileName = AutoSign.uploadPicture(session, user['photo'], apis)
-                form['signPhotoUrl'] = AutoSign.getPictureUrl(session, fileName, apis)
+            if config['photo'] != '':
+                fileName = self.uploadPicture(config['photo'])
+                form['signPhotoUrl'] = self.getPictureUrl(fileName)
             else:
                 Util.log('签到照片未配置')
                 return None
@@ -381,7 +465,7 @@ class AutoSign:
         if task['isNeedExtra'] == 1:
             extraFields = task['extraField']
             #根据设定内容填充表格
-            defaults = user['extra']
+            defaults = config['extra']
             extraFieldItemValues = []
             #遍历每条附加信息,这里，预设的值必须与选项顺序一一对应
             for extraField in extraFields:
@@ -402,17 +486,20 @@ class AutoSign:
                         extraFieldItemValues.append(extraFieldItemValue)
             # 处理带附加选项的签到
             form['extraFieldItems'] = extraFieldItemValues
-        form['longitude'] = user['lon']
-        form['latitude'] = user['lat']
+        form['longitude'] = config['lon']
+        form['latitude'] = config['lat']
         form['isMalposition'] = task['isMalposition']
-        form['abnormalReason'] = user['abnormalReason']
-        form['signInstanceWid'] = task['signInstanceWid']
-        form['position'] = user['address']
+        form['abnormalReason'] = config['abnormalReason']
+        form['signInstanceWid'] = task['signInstanceWid'] 
+        form['position'] = config['address']
         form['uaIsCpadaily'] = True
         return form
-    @staticmethod
-    def submitForm(session, user, form, apis):
-        res = session.post(url=API['Sign']['Submit'].format(host=apis['host']),headers=Util.GenHeadersWithExtension(user,apis), data=json.dumps(form))
+    def submitForm(self,config, form):
+        res = self.session.post(
+                                url=self.API['Submit'].format(host=self.School_Server_API['host']),
+                                headers=Util.GenHeadersWithExtension(config,self.School_Server_API), 
+                                data=json.dumps(form)
+                                )
         message = res.json()['message']
         if message == 'SUCCESS':
             Util.log('自动签到成功')
@@ -421,62 +508,15 @@ class AutoSign:
             Util.log('自动签到失败，原因是：' + message)
             Util.SendMessage('签到失败','自动签到失败，原因是'+message+'请手动签到，等待更新')
             return False
-    @staticmethod
-    def GenInfo(session,user,apis):
-        #获取前一天的签到信息
-        data={"statisticYearMonth":Util.GetDate('%Y-%m',-86400)}
-        headers=Util.GenNormalHears()
-        headers['Content-Type']='application/json;charset=UTF-8'
-        try:
-            res=session.post(url=API['Sign']['GenInfo'].format(apis['host']),data=json.dumps(data),headers=headers)
-            signdays=res.json()['datas']['rows']
-        except:
-            Util.log("获取昨天签到信息时出错")
-        yesterday=Util.GetDate('%Y-%m-%d',-86400)
-        #生成设备id，根据用户账号生成,保证同一学号每次执行时deviceID不变，可以避免辅导员看到用新设备签到
-        deviceId=''
-        random.seed(user['username'].encode('utf-8'))
-        for i in range(8):
-            num=random.randint(97,122)
-            if (num*i+random.randint(1,8))%3==0:
-                deviceId=deviceId+str(num%9)
-            else:
-                deviceId=deviceId+chr(num)
-        deviceId=deviceId+'XiaomiMI6'
-        #读取前一天的签到信息
-        one={
-            'username':user['username'],
-            'password':user['password'],
-            'deviceId':deviceId,
-        }
-        for signday in signdays:
-            if signday['dayInMonth'] == yesterday:
-                yesterday_info=signday
-                break
-        yesterday_signed=yesterday_info['signedTasks']
-        params={}
-        for task in yesterday_signed:
-            params['signInstanceWid']=task['signInstanceWid']
-            params['signWid']=task['signWid']
-            info=AutoSign.GetDetailTask(session,params,apis)
-            extra={}
-            for item in info['signedStuInfo']['extraFieldItemVos']:
-                if item['isExtraFieldOtherItem'] == '1':
-                    extra[item['extraTitle']]=[item['extraFieldItem'],item['ExtraFieldOtherItem']]
-                else:
-                    extra[item['extraTitle']]=[item['extraFieldItem']]
-            one[info['taskName']]={
-                'address':info['signAddress'],
-                'lon':info['longitude'],
-                'lat':info['latitude'],
-                'abnormalReason':None,
-                'photo':None,
-                'extra':extra
-            }
-        return one
-    @staticmethod
-    def Go(session,apis,user):
-        tasks=AutoSign.GetTasks(session,apis)
+    #指定config的参数会覆盖自动生成的参数
+    def Go(self,session=None,userBaseInfo=None,config=None,School_Server_API=None):
+        if session:
+            self.UpdateInfo(session,userBaseInfo,School_Server_API)
+        signedinfo=self.GetSignedInfo()
+        autoconfig=self.GenConfig(signedinfo)
+        if config:
+            autoconfig.update(config)
+        tasks=self.GetTasks()
         todotaskstype=[]
         if len(tasks['unSignedTasks']) > 0:
             text='未完成的签到任务:'
@@ -497,39 +537,154 @@ class AutoSign:
                     'signInstanceWid': todoTask['signInstanceWid'],
                     'signWid': todoTask['signWid']
                 }
-                taskDetail=AutoSign.GetDetailTask(session,params,apis)
+                taskDetail=self.GetDetailTask(params)
                 #with open('task-{}.json'.format(str(i+1)),'w+',encoding='utf-8') as f:
                 #    data=json.dumps(taskDetail,indent=4,ensure_ascii=False)
                 #    f.write(data)
                 #判断是否配置某个打卡选项
-                if taskDetail['taskName'] not in user:
-                    Util.log('"{}"未配置，跳过'.format(taskDetail['taskName']))
+                if taskDetail['taskName'] not in autoconfig:
+                    Util.log('"{}"昨天不存在或未签到'.format(taskDetail['taskName']))
                     continue
                 #判断是否在签到时间
                 t=Util.TimeCheck(taskDetail)
                 if t!=0 and t>60:#超过60秒则不再休眠
                     Util.log('"'+taskDetail['taskName']+'"'+"目前不在签到时间，跳过")
                     continue
-                Form=AutoSign.fillForm(taskDetail,session,user,apis)
+                Form=self.fillForm(taskDetail,autoconfig)
+                if Form == None:
+                    continue
+                submitinfo={
+                    'username':self.userBaseInfo['username'],
+                    'lon':autoconfig[taskDetail['taskName']]['lon'],
+                    'lat':autoconfig[taskDetail['taskName']]['lat'],
+                    'deviceId':self.userBaseInfo['deviceId']
+                }
                 if t>0:
                     t=t+DELAY
                     Util.log("休眠{}s后开始签到".format(str(t)))
                     time.sleep(t)
-                submitinfo={
-                    'username':user['username'],
-                    'lon':user[taskDetail['taskName']]['lon'],
-                    'lat':user[taskDetail['taskName']]['lat'],
-                    'deviceId':user['deviceId']
+                self.submitForm(submitinfo,Form)
+#查寝
+class Attendance(TaskModel):
+    def __init__(self,School_Server_API,session,userBaseInfo):
+        super().__init__('Attendance',School_Server_API,'查寝',session,userBaseInfo)
+    def GenConfig(self,signedTasksInfo):
+        config={}
+        for info in signedTasksInfo:
+            config[info['taskName']]={
+                'address':info['signAddress'],
+                'lon':info['longitude'],
+                'lat':info['latitude'],
+                'abnormalReason':'',
+                'photo':None,
+            }
+        return config
+    def fillForm(self,task,config):
+        config=config[task['taskName']]
+        form = {}
+        form['signInstanceWid'] = task['signInstanceWid']
+        form['longitude'] = config['lon']
+        form['latitude'] = config['lat']
+        form['isMalposition'] = task['isMalposition']
+        form['abnormalReason'] = config['abnormalReason']
+        if task['isPhoto'] == 1:
+            if config[task['taskName']]['photo'] == None:
+                Util.log('"{}"需要照片，但未配置'.format(task['taskName']))
+                return None
+            fileName = self.uploadPicture(config['photo'])
+            form['signPhotoUrl'] = self.getPictureUrl(fileName)
+        else:
+            form['signPhotoUrl'] = ''
+        form['position'] = config['address']
+        form['qrUuid'] = ''
+        #log(form)
+        return form
+    def submitForm(self,config, form):
+        res = self.session.post(
+                                url=self.API['Submit'].format(host=self.School_Server_API['host']),
+                                headers=Util.GenHeadersWithExtension(config,self.School_Server_API), 
+                                data=json.dumps(form)
+                                )
+        message = res.json()['message']
+        if message == 'SUCCESS':
+            Util.log('自动查寝成功')
+            return True
+        else:
+            Util.log('自动查寝失败，原因是：' + message)
+            Util.SendMessage('自动查寝失败','自动查寝失败，原因是'+message+'请手动签到，等待更新')
+            return False
+    #指定config的参数会覆盖自动生成的参数
+    def Go(self,session=None,userBaseInfo=None,config=None,School_Server_API=None):
+        if session:
+            self.UpdateInfo(session,userBaseInfo,School_Server_API)
+        signedinfo=self.GetSignedInfo()
+        autoconfig=self.GenConfig(signedinfo)
+        if config:
+            autoconfig.update(config)
+        tasks=self.GetTasks()
+        todotaskstype=[]
+        if len(tasks['unSignedTasks']) > 0:
+            text='未完成的查寝任务:'
+            for i,task in enumerate(tasks['unSignedTasks']):
+                text=text+str(i+1)+'.'+task['taskName']+' '
+            Util.log(text)
+            todotaskstype.append('unSignedTasks')
+        if len(tasks['leaveTasks']) > 0:
+            text='请假的查寝任务:'
+            for i,task in enumerate(tasks['leaveTasks']):
+                text=text+str(i+1)+'.'+task['taskName']+' '
+            Util.log(text)
+            todotaskstype.append('leaveTasks')
+        for todotype in todotaskstype:
+            for i in range(0,len(tasks[todotype])):
+                todoTask=tasks[todotype][i]
+                params = {
+                    'signInstanceWid': todoTask['signInstanceWid'],
+                    'signWid': todoTask['signWid']
                 }
-                AutoSign.submitForm(session,submitinfo,Form,apis)
-def Do(apis,user):
-    session=Util.Login(user,apis)
+                taskDetail=self.GetDetailTask(params)
+                if taskDetail['taskName'] not in autoconfig:
+                    Util.log('"{}"昨天不存在或未签到，跳过'.format(taskDetail['taskName']))
+                    continue
+                #判断是否在签到时间
+                t=Util.TimeCheck(taskDetail)
+                if t!=0 and t>60:#超过60秒则不再休眠
+                    Util.log('"'+taskDetail['taskName']+'"'+"目前不在签到时间，跳过")
+                    continue
+                Form=self.fillForm(taskDetail,autoconfig)
+                if Form == None:
+                    continue
+                submitinfo={
+                    'username':self.userBaseInfo['username'],
+                    'lon':autoconfig[taskDetail['taskName']]['lon'],
+                    'lat':autoconfig[taskDetail['taskName']]['lat'],
+                    'deviceId':self.userBaseInfo['deviceId']
+                }
+                if t>0:
+                    t=t+DELAY
+                    Util.log("休眠{}s后开始签到".format(str(t)))
+                    time.sleep(t)
+                self.submitForm(submitinfo,Form)
+def Do(School_Server_API,user):
+    session=Util.Login(user,School_Server_API)
     if session:
         Util.log('登陆成功')
-        newuser=AutoSign.GenInfo(session,user,apis)
-        AutoSign.Go(session,apis,newuser)
+        userBaseInfo={
+            'username':user['username'],
+            'deviceId':Util.GenDeviceID(user['username'])
+        }
+        Signer=Sign(School_Server_API,session,userBaseInfo)
+        Attendancer=Attendance(School_Server_API,session,userBaseInfo)
+        try:
+            Signer.Go()
+        except:
+            Util.log("签到过程中出现异常")
+        try:
+            Attendancer.Go()
+        except:
+            Util.log("查寝过程中出现异常")
 def main():
-    apis={
+    School_Server_API={
         'login-url': 'http://authserverxg.swu.edu.cn/authserver/login?service=https%3A%2F%2Fswu.campusphere.net%2Fportal%2Flogin',
         'host': 'swu.campusphere.net'
         }
@@ -537,7 +692,7 @@ def main():
         'username':USERNAME,
         'password':PASSWORD
     }
-    Do(apis,user)
+    Do(School_Server_API,user)
     Util.SendMessage('签到日志',Util.logs)
 # 提供给腾讯云函数调用的启动函数
 def main_handler(event, context):
