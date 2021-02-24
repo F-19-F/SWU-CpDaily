@@ -1,5 +1,5 @@
 import urllib.request
-res=urllib.request.urlopen(url='https://gitee.com/F-19-F/SWU-CpDaily/raw/master/index.py')
+res=urllib.request.urlopen(url='https://raw.githubusercontent.com/F-19-F/SWU-CpDaily/master/index.py')#注意国内访问github的raw需要特殊手段。
 code=res.read().decode('utf-8')
 #######-----单用户配置----##############
 #CLOUDUSERNAME学号
