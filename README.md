@@ -1,12 +1,13 @@
 # 西南大学今日校园自动签到-python
 # 纯python实现的今日校园自动打卡
+# 本项目仅供学习交流使用，如作他用所承受的任何直接、间接法律责任一概与作者无关
 ## 优点:
 #### - 1.懒人版不需要配置签到地址等信息，自动根据昨天打卡地址打卡
 #### - 2.代码可以热更新，部署一次，基本上不用再管，需要更新签到地址时只需要在手机上更新一次签到即可
 #### - 3.不依赖于第三方登录服务器，信息更安全
 #### - 4.灵活度高，更新简单，今日校园更新，项目可以很快跟进
 #### - 5.模块化程度高，添加查寝和信息收集简单
-#### 项目码云地址:[SWU-CpDaily](https://gitee.com/F-19-F/SWU-CpDaily)      
+#### ~~项目码云地址:SWU-CpDaily~~，由于特殊原因,码云仓库已经删掉了      
 ## 使用方法
 ### 单用户懒人版
 #### - 1.打开[腾讯云云函数](https://console.cloud.tencent.com/scf)并扫码登录,完成实名认证
@@ -17,7 +18,7 @@
 #### - 5.在在线代码编辑器中将项目的index.py上传，可以直接复制内容,并将代码中对应部分换成你的学号和身份证后6位。如果你不想以后更新时更新代码（~~当懒人~~），建议直接复制下面这几行代码到云函数，修改学号和密码即可。会自动拉取项目代码签到。
 ```
 import urllib.request
-res=urllib.request.urlopen(url='https://gitee.com/F-19-F/SWU-CpDaily/raw/master/index.py')
+res=urllib.request.urlopen(url='https://raw.githubusercontent.com/F-19-F/SWU-CpDaily/master/index.py')
 code=res.read().decode('utf-8')
 #######-----单用户配置----##############
 #CLOUDUSERNAME学号
