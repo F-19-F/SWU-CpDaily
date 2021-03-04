@@ -84,7 +84,7 @@ if 'CLOUDSECRET_KEY' in locals().keys():
 ######################################################
 MAX_Captcha_Times=20
 class Util: #统一的类
-    logs='项目最近更新日期2021-2-23，添加了查寝，更新APP模拟版本为8.2.20'
+    logs='项目最近更新日期2021-3-4,同步更新查寝'
     OCRclient = None
     @staticmethod
     def GetDate(Mod='%Y-%m-%d %H:%M:%S',offset=0):
@@ -596,8 +596,7 @@ class Attendance(TaskModel):
         else:
             form['signPhotoUrl'] = ''
         form['position'] = config['address']
-        form['qrUuid'] = ''
-        #log(form)
+        form['uaIsCpadaily'] = True
         return form
     def submitForm(self,config, form):
         res = self.session.post(
