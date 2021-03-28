@@ -17,6 +17,7 @@ import traceback
 ###################################################
 USERNAME='你的学号'
 PASSWORD='你身份证后6位'
+PHOTO_FILE_NAME=''
 #到点延迟多少秒签到，默认为0s
 DELAY=0
 ####################################################
@@ -444,7 +445,7 @@ class Sign(TaskModel):
                 'lon':info['longitude'],
                 'lat':info['latitude'],
                 'abnormalReason':'',
-                'photo':None,
+                'photo':PHOTO_FILE_NAME,
                 'extra':extra
             }
         return config
@@ -457,7 +458,7 @@ class Sign(TaskModel):
                 fileName = self.uploadPicture(config['photo'])
                 form['signPhotoUrl'] = self.getPictureUrl(fileName)
             else:
-                Util.log('签到照片未配置')
+                Util.log('"{}"需要照片，但未配置'.format(task['taskName']))
                 return None
         else:
             form['signPhotoUrl'] = ''
@@ -576,7 +577,7 @@ class Attendance(TaskModel):
                 'lon':info['longitude'],
                 'lat':info['latitude'],
                 'abnormalReason':'',
-                'photo':None,
+                'photo':PHOTO_FILE_NAME,
             }
         return config
     def fillForm(self,task,config):
@@ -588,11 +589,12 @@ class Attendance(TaskModel):
         form['isMalposition'] = task['isMalposition']
         form['abnormalReason'] = config['abnormalReason']
         if task['isPhoto'] == 1:
-            if config[task['taskName']]['photo'] == None:
+            if config['photo'] != '':
+                fileName = self.uploadPicture(config['photo'])
+                form['signPhotoUrl'] = self.getPictureUrl(fileName)
+            else:
                 Util.log('"{}"需要照片，但未配置'.format(task['taskName']))
                 return None
-            fileName = self.uploadPicture(config['photo'])
-            form['signPhotoUrl'] = self.getPictureUrl(fileName)
         else:
             form['signPhotoUrl'] = ''
         form['position'] = config['address']
