@@ -51,5 +51,5 @@ exec(code)
 ## Enjoy it!
 
 
-#### 多用户版可以配置多人打卡签到,就简单说一下，项目中multiuser中的代码是多用户版本，本地执行Config.py后输入学号和密码，会生成configs.json,把configs.json和DailyCp.py上传到云函数定时执行即可
+#### ~~多用户版可以配置多人打卡签到,就简单说一下，项目中multiuser中的代码是多用户版本，本地执行Config.py后输入学号和密码，会生成configs.json,把configs.json和DailyCp.py上传到云函数定时执行即可~~,多用户版本已经删除
 ##  最后注意一下，这个只针对西南大学哦，其他学校可以按照这个项目的思路改写
