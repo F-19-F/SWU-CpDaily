@@ -394,10 +394,9 @@ class TaskModel:
         else:
             Util.log('获取{}任务详情时出错,原因是'.format(self.Showname)+res['message'])
             return None
-
-    def GetSignedInfo(self):
-        # 获取前一天的签到信息
-        data = {"statisticYearMonth": Util.GetDate('%Y-%m', 1)}
+    def GetSignedInfo(self,day=1):
+        # 默认获取前一天的签到信息
+        data = {"statisticYearMonth": Util.GetDate('%Y-%m', day)}
         headers = Util.GenNormalHears(self.School_Server_API)
         try:
             res = self.session.post(url=self.API['GenInfo'].format(
@@ -406,7 +405,7 @@ class TaskModel:
         except:
             Util.log("获取昨天签到信息时出错")
             return None
-        yesterday = Util.GetDate('%Y-%m-%d', 1)
+        yesterday = Util.GetDate('%Y-%m-%d', day)
         for signday in signdays:
             if signday['dayInMonth'] == yesterday:
                 yesterday_info = signday
@@ -447,11 +446,8 @@ class Sign(TaskModel):
         for info in signedTasksInfo:
             extra = {}
             for item in info['signedStuInfo']['extraFieldItemVos']:
-                if item['isExtraFieldOtherItem'] == '1':
-                    extra[item['extraTitle']] = [
-                        item['extraFieldItem'], item['ExtraFieldOtherItem']]
-                else:
-                    extra[item['extraTitle']] = [item['extraFieldItem']]
+
+                extra[item['extraTitle']] = [item['extraFieldItem']]
             config[info['taskName']] = {
                 'address': info['signAddress'],
                 'lon': info['longitude'],
@@ -494,10 +490,6 @@ class Sign(TaskModel):
                     if extraFieldItem['content'] == defaults[extraField['title']][0]:
                         extraFieldItemValue = {'extraFieldItemValue': defaults[extraField['title']][0],
                                                'extraFieldItemWid': extraFieldItem['wid']}
-                        # 其他，额外文本,SWU不需要,Edited By Swutangtf
-                        if extraFieldItem['isOtherItems'] == 1:
-                            extraFieldItemValue = {'extraFieldItemValue': defaults[extraField['title']][1],
-                                                   'extraFieldItemWid': extraFieldItem['wid']}
                         extraFieldItemValues.append(extraFieldItemValue)
             # 处理带附加选项的签到
             form['extraFieldItems'] = extraFieldItemValues
@@ -561,12 +553,19 @@ class Sign(TaskModel):
                     'signWid': todoTask['signWid']
                 }
                 taskDetail = self.GetDetailTask(params)
-                # with open('task-{}.json'.format(str(i+1)),'w+',encoding='utf-8') as f:
-                #    data=json.dumps(taskDetail,indent=4,ensure_ascii=False)
-                #    f.write(data)
                 # 判断是否配置某个打卡选项
                 if taskDetail['taskName'] not in autoconfig:
                     Util.log('"{}"昨天不存在或未签到'.format(taskDetail['taskName']))
+                    Util.log("开始回滚以获取签到信息")
+                    for i in range(30):
+                        Util.log("回滚{}天".format(str(i+2)))
+                        signedinfo=self.GetSignedInfo(i+2)
+                        autoconfig=self.GenConfig(signedinfo)
+                        if taskDetail['taskName'] in autoconfig:
+                            Util.log("获取到签到信息，继续进行签到")
+                            break
+                if taskDetail['taskName'] not in autoconfig:
+                    Util.log("回滚一月仍未获取到签到信息，可能是新发布的任务，跳过")
                     continue
                 # 判断是否在签到时间
                 t = Util.TimeCheck(taskDetail)
@@ -681,6 +680,16 @@ class Attendance(TaskModel):
                 taskDetail = self.GetDetailTask(params)
                 if taskDetail['taskName'] not in autoconfig:
                     Util.log('"{}"昨天不存在或未签到，跳过'.format(taskDetail['taskName']))
+                    Util.log("开始回滚以获取签到信息")
+                    for i in range(30):
+                        Util.log("回滚{}天".format(str(i+2)))
+                        signedinfo=self.GetSignedInfo(i+2)
+                        autoconfig=self.GenConfig(signedinfo)
+                        if taskDetail['taskName'] in autoconfig:
+                            Util.log("获取到签到信息，继续进行签到")
+                            break
+                if taskDetail['taskName'] not in autoconfig:
+                    Util.log("回滚一月仍未获取到签到信息，可能是新发布的任务，跳过")
                     continue
                 # 判断是否在签到时间
                 t = Util.TimeCheck(taskDetail)
