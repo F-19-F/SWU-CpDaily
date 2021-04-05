@@ -96,7 +96,8 @@ class Util:  # 统一的类
     @staticmethod
     def GetDate(Mod='%Y-%m-%d %H:%M:%S', offset=0):
         utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
-        bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8, seconds=offset)))
+        bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8)))
+        bj_dt=bj_dt-timedelta(days=offset)
         return bj_dt.strftime(Mod)
 
     @staticmethod
@@ -396,7 +397,7 @@ class TaskModel:
 
     def GetSignedInfo(self):
         # 获取前一天的签到信息
-        data = {"statisticYearMonth": Util.GetDate('%Y-%m', -86400)}
+        data = {"statisticYearMonth": Util.GetDate('%Y-%m', 1)}
         headers = Util.GenNormalHears(self.School_Server_API)
         try:
             res = self.session.post(url=self.API['GenInfo'].format(
@@ -405,7 +406,7 @@ class TaskModel:
         except:
             Util.log("获取昨天签到信息时出错")
             return None
-        yesterday = Util.GetDate('%Y-%m-%d', -86400)
+        yesterday = Util.GetDate('%Y-%m-%d', 1)
         for signday in signdays:
             if signday['dayInMonth'] == yesterday:
                 yesterday_info = signday
