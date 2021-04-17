@@ -37,7 +37,7 @@ SECRET_KEY = '你的SECRET_KEY'
 #################!!!!DES加密密钥!!!!###################
 #######################################################
 DESKEY = 'b3L26XNL'
-APPVERSION = '8.2.20'
+APPVERSION = '8.2.22'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
 #######################################################
@@ -90,7 +90,7 @@ MAX_Captcha_Times = 20
 
 
 class Util:  # 统一的类
-    logs = '项目最近更新日期2021-4-2,更新日志推送级别'
+    logs = 'V2021.4.17'
     OCRclient = None
 
     @staticmethod
@@ -500,6 +500,7 @@ class Sign(TaskModel):
         form['signInstanceWid'] = task['signInstanceWid']
         form['position'] = config['address']
         form['uaIsCpadaily'] = True
+        form['signVersion'] = '1.0.0'
         return form
 
     def submitForm(self, config, form):
