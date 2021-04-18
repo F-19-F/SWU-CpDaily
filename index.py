@@ -406,6 +406,8 @@ class TaskModel:
             Util.log("获取昨天签到信息时出错")
             return None
         yesterday = Util.GetDate('%Y-%m-%d', day)
+        if len(signdays) == 0:
+            return []
         for signday in signdays:
             if signday['dayInMonth'] == yesterday:
                 yesterday_info = signday
