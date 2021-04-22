@@ -422,6 +422,12 @@ class TaskModel:
             if info:
                 signedTasksInfo.append(info)
         return signedTasksInfo
+    def CheckSuccess(self):
+        all_tasks=self.GetTasks()
+        if self.real_taskname not in all_tasks['unSignedTasks']:
+            return True
+        else:
+            return False
 
     # 模板下面的函数根据对应任务实现
 
@@ -514,6 +520,12 @@ class Sign(TaskModel):
         )
         message = res.json()['message']
         if message == 'SUCCESS':
+            if not self.CheckSuccess():
+                message='提交信息成功，但任务仍为未签到状态'
+                Util.log(message)
+                Util.SendMessage("今日校园自动签到失败", "自动签到失败，原因是：" +
+                    message+" 请手动签到，等待更新")
+                return False
             Util.log('自动签到成功')
             if PUSH_LEVEL == 1:
                 Util.SendMessage(
@@ -522,7 +534,7 @@ class Sign(TaskModel):
         else:
             Util.log('自动签到失败，原因是：' + message)
             if PUSH_LEVEL < 2:
-                Util.SendMessage("今日校园自动查寝失败", "自动查寝失败，原因是：" +
+                Util.SendMessage("今日校园自动签到失败", "自动签到失败，原因是：" +
                                  message+" ,请手动签到，等待更新")
             return False
     # 指定config的参数会覆盖自动生成的参数
@@ -639,6 +651,12 @@ class Attendance(TaskModel):
         )
         message = res.json()['message']
         if message == 'SUCCESS':
+            if not self.CheckSuccess():
+                message='提交信息成功，但任务仍为未签到状态'
+                Util.log(message)
+                Util.SendMessage("今日校园自动查寝失败", "自动查寝失败，原因是：" +
+                    message+" 请手动签到，等待更新")
+                return False
             Util.log('自动查寝成功')
             if PUSH_LEVEL == 1:
                 Util.SendMessage(
