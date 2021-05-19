@@ -193,14 +193,19 @@ class Util:  # 统一的类
                     continue
                 Params['captcha'] = code
                 res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
-                if 'Location' in res.headers:
-                    # 验证码登录成功
+                if 'Location' in res.headers or res.json()['resultCode'] == 'FAIL_UPNOTMATCH':
+                    # 验证码登录成功或者密码错误
                     break
                 if i == MAX_Captcha_Times-1:
                     Util.log("验证码识别超过最大次数")
         else:
             res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
         if 'Location' not in res.headers:
+            reason=res.json()['resultCode']
+            if reason == 'FORCE_MOD_PASS':
+                Util.log("请重置密码后重试！")
+            elif reason == 'FAIL_UPNOTMATCH':
+                Util.log("用户名或密码错误！")
             Util.log("登录失败")
             return None
         nexturl = res.headers['Location']
