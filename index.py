@@ -16,7 +16,7 @@ import traceback
 ##########!!!!!!单用户信息!!!#######################
 ###################################################
 USERNAME = '你的学号'
-PASSWORD = '你身份证后6位'
+PASSWORD = '你的密码'
 # 到点延迟多少秒签到，默认为0s
 DELAY = 0
 ####################################################
@@ -90,7 +90,7 @@ MAX_Captcha_Times = 20
 
 
 class Util:  # 统一的类
-    logs = 'V2021.4.17'
+    logs = 'V2021.5.19'
     OCRclient = None
 
     @staticmethod
@@ -110,24 +110,6 @@ class Util:  # 统一的类
         else:
             Util.logs = Text
         sys.stdout.flush()
-
-    @staticmethod
-    def GetLoginParams(htmlsrc):
-        result = {}
-        form = re.findall(r'<form.*?>(.*?)</form>', htmlsrc, re.DOTALL)
-        if len(form) < 1:
-            return None
-        form = form[0]
-        # 使用正则表达式匹配表单选项，减少对第三方库的依赖
-        items = re.findall(r'<input.*?name=\"(.*?)\".*?>', form)
-        for item in items:
-            value = re.findall(
-                r'<input.*?name=\"{}\".*?value=\"(.*?)\".*?>'.format(item), form)
-            if len(value) > 0:
-                result[item] = value[0]
-            else:
-                result[item] = ''
-        return result
 
     @staticmethod
     def captchaOCR(image):
@@ -151,16 +133,6 @@ class Util:  # 统一的类
             return ''
 
     @staticmethod
-    def CookDict2Str(cookdic):
-        k = len(cookdic)
-        cookiestr = ''
-        for i, cookie in enumerate(cookdic):
-            cookiestr = cookiestr+cookie+'='+cookdic[cookie]
-            if i < k-1:
-                cookiestr = cookiestr+';'
-        return cookiestr
-
-    @staticmethod
     def Login(user, School_Server_API):
         loginurl = School_Server_API['login-url']
         # 解析login-url中的协议和host
@@ -180,65 +152,59 @@ class Util:  # 统一的类
         }
         # session存放最终cookies
         session = requests.Session()
-        # poster发送中间POST请求,用于处理特殊cookie
-        poster = requests.urllib3.PoolManager()
-        # SWU在网页这里没有直接放加密盐值
         try:
             res = session.get(url=loginurl, headers=headers)
         except:
             Util.log("学校登录服务器可能宕机了...")
             return None
-        # 存储cookies
-        cookies = requests.utils.dict_from_cookiejar(session.cookies)
-        PostUrl = re.findall('action=\"(.*?)\"', res.text)[0]
-        PostUrl = protocol+"://"+host+PostUrl
-        Params = Util.GetLoginParams(res.text)
+        #获取重定向url中的lt
+        lt = re.findall('_2lBepC=(.*)&*', res.url)
+        if len(lt) == 0:
+            Util.log("获取lt失败")
+            return None
+        lt=lt[0]
+        PostUrl = '{}://{}/iap/doLogin'.format(protocol,host)
+        Params = {}
         Params['username'] = user['username']
         Params['password'] = user['password']
+        Params['rememberMe'] = 'false'
+        Params['mobile'] = ''
+        Params['dllt'] = ''
+        Params['captcha'] = ''
+        ltUrl='{}://{}/iap/security/lt'.format(protocol,host)
         LoginHeaders = headers
         LoginHeaders['Content-Type'] = 'application/x-www-form-urlencoded'
-        LoginHeaders['cookie'] = Util.CookDict2Str(cookies)
+        res=session.post(url=ltUrl,data={'lt':lt},headers=LoginHeaders)
+        if res.status_code != 200:
+            Util.log("申请lt失败")
+            return None
+        res=res.json()['result']
+        Params['lt']=res['_lt']
+        needCaptcha=res['needCaptcha']
         # 判断是否需要验证码
-        needcaptchaUrl = '{}://{}/authserver/needCaptcha.html'.format(
-            protocol, host)
-        captchaUrl = '{}://{}/authserver/captcha.html'.format(protocol, host)
-        res = session.get(url='{}?username={}'.format(
-            needcaptchaUrl, user['username']), headers=headers)
-        if 'false' in res.text:
-            needCaptcha = False
-        else:
-            needCaptcha = True
         if needCaptcha:
+            captchaUrl = '{}://{}/iap/generateCaptcha'.format(protocol, host)
             for i in range(MAX_Captcha_Times):
                 Captcha = session.get(url=captchaUrl, headers=headers)
                 code = Util.captchaOCR(Captcha.content)
                 # api qps限制
                 time.sleep(0.5)
-                if len(code) != 4:
+                if len(code) != 5:
                     continue
-                Params['captchaResponse'] = code
-                res = poster.request('POST', loginurl, body=up.urlencode(
-                    Params), headers=LoginHeaders, redirect=False)
+                Params['captcha'] = code
+                res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
                 if 'Location' in res.headers:
                     # 验证码登录成功
                     break
                 if i == MAX_Captcha_Times-1:
                     Util.log("验证码识别超过最大次数")
         else:
-            res = poster.request('POST', loginurl, body=up.urlencode(
-                Params), headers=LoginHeaders, redirect=False)
+            res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
         if 'Location' not in res.headers:
             Util.log("登录失败")
             return None
         nexturl = res.headers['Location']
-        # requests.session对于部分SET-COOKIE无法正常识别，需手动更新
-        tmpcookies = res.headers.get_all('Set-Cookie')
-        for tmp in tmpcookies:
-            tmpcookie = re.findall('(.*?)=(.*?);', tmp)[0]
-            cookies[tmpcookie[0]] = tmpcookie[1]
         headers['host'] = School_Server_API['host']
-        session.cookies = requests.utils.cookiejar_from_dict(
-            cookies, cookiejar=None, overwrite=True)
         res = session.post(url=nexturl, headers=headers)
         return session
 
@@ -763,7 +729,7 @@ def Do(School_Server_API, user):
 
 def main():
     School_Server_API = {
-        'login-url': 'http://authserverxg.swu.edu.cn/authserver/login?service=https%3A%2F%2Fswu.campusphere.net%2Fportal%2Flogin',
+        'login-url': 'https://swu.campusphere.net/iap/login?service=https%3A%2F%2Fswu.campusphere.net%2Fportal%2Flogin',
         'host': 'swu.campusphere.net'
     }
     user = {
