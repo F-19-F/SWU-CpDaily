@@ -24,7 +24,7 @@ code=res.read().decode('utf-8')
 #CLOUDUSERNAME学号
 CLOUDUSERNAME='你的学号'
 #CLOUDPASSWORD密码(西大为身份证后6位)
-CLOUDPASSWORD='你身份证后6位'
+CLOUDPASSWORD='你的密码'
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
@@ -57,5 +57,5 @@ exec(code)
 ## Enjoy it!
 
 
-#### ~~多用户版可以配置多人打卡签到,就简单说一下，项目中multiuser中的代码是多用户版本，本地执行Config.py后输入学号和密码，会生成configs.json,把configs.json和DailyCp.py上传到云函数定时执行即可~~,多用户版本已经删除
+#### 5.19更新说明:身份证带X的同学，密码没有被重置，可以不修改密码正常使用，身份证不带X的同学，需要自己用默认密码登录后修改密码
 ##  最后注意一下，这个只针对西南大学哦，其他学校可以按照这个项目的思路改写
