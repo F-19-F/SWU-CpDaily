@@ -5,7 +5,7 @@ code=res.read().decode('utf-8')
 #CLOUDUSERNAME学号
 CLOUDUSERNAME='你的学号'
 #CLOUDPASSWORD密码(西大为身份证后6位)
-CLOUDPASSWORD='你身份证后6位'
+CLOUDPASSWORD='你的密码'
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
