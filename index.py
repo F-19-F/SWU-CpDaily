@@ -180,34 +180,36 @@ class Util:  # 统一的类
             return None
         res=res.json()['result']
         Params['lt']=res['_lt']
-        needCaptcha=res['needCaptcha']
-        # 判断是否需要验证码
-        if needCaptcha:
-            captchaUrl = '{}://{}/iap/generateCaptcha'.format(protocol, host)
-            for i in range(MAX_Captcha_Times):
-                Captcha = session.get(url=captchaUrl, headers=headers)
-                code = Util.captchaOCR(Captcha.content)
-                # api qps限制
-                time.sleep(0.5)
-                if len(code) != 5:
-                    continue
-                Params['captcha'] = code
-                res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
-                if 'Location' in res.headers or res.json()['resultCode'] == 'FAIL_UPNOTMATCH':
-                    # 验证码登录成功或者密码错误
-                    break
-                if i == MAX_Captcha_Times-1:
-                    Util.log("验证码识别超过最大次数")
-        else:
-            res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
+        #新版验证码，直接POST，结果会说明是否需要验证码
+        res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
         if 'Location' not in res.headers:
             reason=res.json()['resultCode']
             if reason == 'FORCE_MOD_PASS':
                 Util.log("请重置密码后重试！")
+                return None
             elif reason == 'FAIL_UPNOTMATCH':
                 Util.log("用户名或密码错误！")
-            Util.log("登录失败")
-            return None
+                return None
+            #需要验证码登录
+            elif reason == 'CAPTCHA_NOTMATCH':
+                captchaUrl = '{}://{}/iap/generateCaptcha?ltId={}'.format(protocol, host,Params['lt'])
+                for i in range(MAX_Captcha_Times):
+                    Captcha = session.get(url=captchaUrl, headers=headers)
+                    code = Util.captchaOCR(Captcha.content)
+                    # api qps限制
+                    time.sleep(0.5)
+                    if len(code) != 5:
+                        continue
+                    Params['captcha'] = code
+                    res = session.post(PostUrl,data=Params,headers=LoginHeaders,allow_redirects=False)
+                    if 'Location' in res.headers:
+                        # 验证码登录成功或者密码错误
+                        break
+                    elif res.json()['resultCode'] == 'FAIL_UPNOTMATCH':
+                        Util.log("用户名或密码错误！")
+                        return None
+                    if i == MAX_Captcha_Times-1:
+                        Util.log("验证码识别超过最大次数")
         nexturl = res.headers['Location']
         headers['host'] = School_Server_API['host']
         res = session.post(url=nexturl, headers=headers)
