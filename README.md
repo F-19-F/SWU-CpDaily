@@ -15,12 +15,12 @@
 #### - 3.将项目中的Packages.zip(可以在[release](https://github.com/F-19-F/SWU-CpDaily/releases/tag/1.1)中下载，clone后用项目中的也可以)上传到层中，运行环境选择python3.6 ![avatar](./tutorial/新建层2.png)
 #### - 4.进入函数服务，选择新建 ![avatar](./tutorial/新建函数0.png)
 #### - 5.按照图设置好，名称自己定，运行环境选择python3.6 ![avatar](./tutorial/新建函数1.png)
-#### - 5.复制下面这几行代码到云函数到在线代码编辑器中，用学号替换"你的学号"，用密码替换"你的密码",其他      
+#### - 5.复制下面这几行代码到云函数到在线代码编辑器中，用学号替换"你的学号"，用密码替换"你的密码",其他选项根据需要修改    
 ```
 #######必填选项##############
 #CLOUDUSERNAME学号
 CLOUDUSERNAME='你的学号'
-#CLOUDPASSWORD密码(西大为身份证后6位)
+#CLOUDPASSWORD密码
 CLOUDPASSWORD='你的密码'
 #######以下部分非必填########
 #签到延迟，默认准点
