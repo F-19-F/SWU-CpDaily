@@ -15,16 +15,14 @@
 #### - 3.将项目中的Packages.zip(可以在[release](https://github.com/F-19-F/SWU-CpDaily/releases/tag/1.1)中下载，clone后用项目中的也可以)上传到层中，运行环境选择python3.6 ![avatar](./tutorial/新建层2.png)
 #### - 4.进入函数服务，选择新建 ![avatar](./tutorial/新建函数0.png)
 #### - 5.按照图设置好，名称自己定，运行环境选择python3.6 ![avatar](./tutorial/新建函数1.png)
-#### - 5.在在线代码编辑器中将项目的index.py上传，可以直接复制内容,并将代码中对应部分换成你的学号和身份证后6位。如果你不想以后更新时更新代码（~~当懒人~~），建议直接复制下面这几行代码到云函数，修改学号和密码即可。会自动拉取项目代码签到。
+#### - 5.复制下面这几行代码到云函数到在线代码编辑器中，用学号替换"你的学号"，用密码替换"你的密码",其他      
 ```
-import urllib.request
-res=urllib.request.urlopen(url='https://raw.githubusercontent.com/F-19-F/SWU-CpDaily/master/index.py')
-code=res.read().decode('utf-8')
-#######-----单用户配置----##############
+#######必填选项##############
 #CLOUDUSERNAME学号
 CLOUDUSERNAME='你的学号'
 #CLOUDPASSWORD密码(西大为身份证后6位)
 CLOUDPASSWORD='你的密码'
+#######以下部分非必填########
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
@@ -37,12 +35,17 @@ CLOUDPUSHTOKEN=''
 #2.发送详细日志
 CLOUDPUSH_LEVEL=1
 #######################################
-#百度OCR的密钥，一般可以不填
+#百度OCR的密钥，用于验证码登录，一般可以不填
 CLOUDAPP_ID=''
 CLOUDAPI_KEY=''
 CLOUDSECRET_KEY=''
 #######################################
+import urllib.request
+req=urllib.request.Request(url='https://raw.fastgit.org/F-19-F/SWU-CpDaily/master/index.py',headers={"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.106 Safari/537.36"},method='GET')
+res=urllib.request.urlopen(req)
+code=res.read().decode('utf-8')
 exec(code)
+##########一定要复制到这里#############
 ```
 ![avatar](./tutorial/新建函数2.png)
 #### - 6.往下拉，将高级配置中的执行超时时间设为60s ![avatar](./tutorial/新建函数3.png)
