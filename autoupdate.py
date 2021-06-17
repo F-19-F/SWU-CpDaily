@@ -7,7 +7,7 @@ CLOUDPASSWORD='你的密码'
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
-#CLOUDPUSHTOKEN微信推送打卡日志的token可填可不填
+#CLOUDPUSHTOKEN QQ推送打卡日志的token可填可不填
 CLOUDPUSHTOKEN=''
 #CLOUDPUSH_LEVEL:推送级别，默认同时推送成功和失败消息,根据需要修改
 #消息推送的级别

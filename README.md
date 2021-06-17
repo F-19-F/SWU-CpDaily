@@ -6,8 +6,8 @@
 #### - 2.代码可以热更新，部署一次，基本上不用再管，需要更新签到地址时只需要在手机上更新一次签到即可
 #### - 3.不依赖于第三方登录服务器，信息更安全
 #### - 4.灵活度高，更新简单，今日校园更新，项目可以很快跟进
-#### - 5.模块化程度高，添加查寝和信息收集简单
-#### ~~项目码云地址:SWU-CpDaily~~，由于特殊原因,码云仓库已经删掉了      
+#### - 5.模块化程度高，添加~~查寝~~(已添加)和信息收集简单
+#### 看不到图片？[点我](https://hub.fastgit.org/F-19-F/SWU-CpDaily)
 ## 使用方法
 ### 单用户懒人版
 #### - 1.打开[腾讯云云函数](https://console.cloud.tencent.com/scf)并扫码登录,完成实名认证
@@ -26,7 +26,7 @@ CLOUDPASSWORD='你的密码'
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
-#CLOUDPUSHTOKEN微信推送打卡日志的token可填可不填
+#CLOUDPUSHTOKEN QQ推送打卡日志的token可填可不填
 CLOUDPUSHTOKEN=''
 #CLOUDPUSH_LEVEL:推送级别，默认同时推送成功和失败消息,根据需要修改
 #消息推送的级别
@@ -56,7 +56,11 @@ exec(code)
 #### - 11.拉到最底下测试一下 ![avatar](./tutorial/新建函数8.png)
 #### - 12.等待测试出来结果，正常情况结果如图 ![avatar](./tutorial/测试.png)   
 #### - 13.进入触发管理，新建触发，并按图设置，Cron表达式"30 59 06,18 * * * *"表示每天6:50:30和18:59:30执行签到，程序会自动等待至签到时间签到 ![avatar](./tutorial/创建定时触发.png)
-#### - 如果想把签到结果推送到微信，请打开[PUSH](https://pushplus.hxtrip.com/login?redirectUrl=/message)扫码关注公众号后复制网页中的token到代码中token对应的位置,签到日志会通过公众号发送到你的微信 ![avatar](./tutorial/消息推送.png)
+#### - 如果想把签到结果推送到QQ，请打开[QMSG酱](https://qmsg.zendee.cn/me.html#/login)登录后设置机器人，并把机器人加为你QQ好友![avatar](./tutorial/选择机器人.png)
+#### - 把你的QQ号添加进去
+![avatar](./tutorial/添加QQ号.png)
+#### - 把KEY复制到代码编辑器中对应位置(CLOUDPUSHTOKEN)
+![avatar](./tutorial/消息推送.png)
 ## Enjoy it!
 
 
