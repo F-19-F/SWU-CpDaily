@@ -8,7 +8,6 @@ import random
 import base64
 import sys
 import json
-import os
 import re
 import time
 import traceback
@@ -22,8 +21,8 @@ DELAY = 0
 ####################################################
 ###########!!!!!消息推送!!!!!#######################
 ###################################################
-# push_plus推送token,可以实现微信推送日志(https://pushplus.hxtrip.com),不需要消息推送的话可以不填
-PUSHPLUS_token = ''
+# Qmsg酱推送KEy,QQ消息推送,不需要消息推送的话可以不填
+QMSG_KEY = ''
 # 日志推送级别
 PUSH_LEVEL = 1
 ######################################################
@@ -37,7 +36,7 @@ SECRET_KEY = '你的SECRET_KEY'
 #################!!!!DES加密密钥!!!!###################
 #######################################################
 DESKEY = 'b3L26XNL'
-APPVERSION = '8.2.22'
+APPVERSION = '9.0.0'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
 #######################################################
@@ -74,7 +73,7 @@ if 'CLOUDPASSWORD' in locals().keys():
 if 'CLOUDDELAY' in locals().keys():
     DELAY = locals().get('CLOUDDELAY')
 if 'CLOUDPUSHTOKEN' in locals().keys():
-    PUSHPLUS_token = locals().get('CLOUDPUSHTOKEN')
+    QMSG_KEY = locals().get('CLOUDPUSHTOKEN')
 if 'CLOUDAPP_ID' in locals().keys():
     APP_ID = locals().get('CLOUDAPP_ID')
 if 'CLOUDAPI_KEY' in locals().keys():
@@ -90,7 +89,7 @@ MAX_Captcha_Times = 20
 
 
 class Util:  # 统一的类
-    logs = 'V2021.5.19'
+    logs = 'V2021.6.17'
     OCRclient = None
 
     @staticmethod
@@ -238,6 +237,7 @@ class Util:  # 统一的类
             "userId": user['username'],
         }
         headers = {
+            'tenantId': '1019318364515869',#SWU
             'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36 okhttp/3.12.4',
             'CpdailyStandAlone': '0',
             'Cpdaily-Extension': Util.DESEncrypt(json.dumps(extension)),
@@ -256,7 +256,7 @@ class Util:  # 统一的类
             'Host': School_Server_API['host'],
             'Accept': 'application/json, text/plain, */*',
             'X-Requested-With': 'XMLHttpRequest',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/8.2.22 wisedu/8.2.22',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/9.0.0 wisedu/9.0.0',
             'Content-Type': 'application/json',
             'Accept-Encoding': 'gzip,deflate',
             'Accept-Language': 'zh-CN,en-US;q=0.8',
@@ -291,21 +291,17 @@ class Util:  # 统一的类
     # 通过pushplus推送消息
 
     @staticmethod
-    def SendMessage(title: str, content: str, topic='', ctype='html'):
-        if PUSHPLUS_token == '':
-            Util.log("未配置pushplus的token，消息不会推送")
+    def SendMessage(title: str, content: str,):
+        if QMSG_KEY == '':
+            Util.log("未配置QMSG酱，消息不会推送")
             return False
         data = {
-            'token': PUSHPLUS_token,
-            'title': title,
-            'content': content,
-            'topic': topic,
-            'template': ctype
+            'token': QMSG_KEY,
+            'msg': title+"\n"+content,
         }
         try:
             res = requests.post(
-                url='https://pushplus.hxtrip.com/send', data=data)
-            Util.log(res.json()['msg'])
+                url='https://qmsg.zendee.cn/send/{}'.format(QMSG_KEY), data=data)
         except:
             Util.log('发送失败')
 
