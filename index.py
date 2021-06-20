@@ -377,10 +377,13 @@ class TaskModel:
         yesterday = Util.GetDate('%Y-%m-%d', day)
         if len(signdays) == 0:
             return []
+        yesterday_info={}
         for signday in signdays:
             if signday['dayInMonth'] == yesterday:
                 yesterday_info = signday
                 break
+        if len(yesterday_info)==0:
+            return []
         yesterday_signed = yesterday_info['signedTasks']
         params = {}
         signedTasksInfo = []
