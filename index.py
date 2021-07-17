@@ -662,7 +662,7 @@ class Attendance(TaskModel):
             for i, task in enumerate(tasks['leaveTasks']):
                 text = text+str(i+1)+'.'+task['taskName']+' '
             Util.log(text)
-            todotaskstype.append('leaveTasks')
+            #todotaskstype.append('leaveTasks')
         for todotype in todotaskstype:
             for i in range(0, len(tasks[todotype])):
                 todoTask = tasks[todotype][i]
