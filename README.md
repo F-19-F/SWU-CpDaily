@@ -26,7 +26,7 @@ CLOUDPASSWORD='你的密码'
 #签到延迟，默认准点
 CLOUDDELAY=0
 #######################################
-#CLOUDPUSHTOKEN QQ推送打卡日志的token可填可不填
+#CLOUDPUSHTOKEN 微信推送打卡日志的token可填可不填
 CLOUDPUSHTOKEN=''
 #CLOUDPUSH_LEVEL:推送级别，默认同时推送成功和失败消息,根据需要修改
 #消息推送的级别
@@ -56,11 +56,7 @@ exec(code)
 #### - 11.拉到最底下测试一下 ![avatar](./tutorial/新建函数8.png)
 #### - 12.等待测试出来结果，正常情况结果如图 ![avatar](./tutorial/测试.png)   
 #### - 13.进入触发管理，新建触发，并按图设置，Cron表达式"30 59 06,18 * * * *"表示每天6:50:30和18:59:30执行签到，程序会自动等待至签到时间签到 ![avatar](./tutorial/创建定时触发.png)
-#### - 如果想把签到结果推送到QQ，请打开[QMSG酱](https://qmsg.zendee.cn/me.html#/login)登录后设置机器人，并把机器人加为你QQ好友![avatar](./tutorial/选择机器人.png)
-#### - 把你的QQ号添加进去
-![avatar](./tutorial/添加QQ号.png)
-#### - 把KEY复制到代码编辑器中对应位置(CLOUDPUSHTOKEN)
-![avatar](./tutorial/消息推送.png)
+#### - 如果想把签到结果推送到微信，请打开[PUSH](https://www.pushplus.plus/push1.html)扫码关注公众号后复制网页中的token到代码中token对应的位置,签到日志会通过公众号发送到你的微信 ![avatar](./tutorial/消息推送.png)
 ## Enjoy it!
 
 

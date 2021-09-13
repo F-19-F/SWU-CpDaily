@@ -36,7 +36,7 @@ SECRET_KEY = '你的SECRET_KEY'
 #################!!!!DES加密密钥!!!!###################
 #######################################################
 DESKEY = 'b3L26XNL'
-APPVERSION = '9.0.7'
+APPVERSION = '9.0.10'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
 #######################################################
@@ -73,7 +73,7 @@ if 'CLOUDPASSWORD' in locals().keys():
 if 'CLOUDDELAY' in locals().keys():
     DELAY = locals().get('CLOUDDELAY')
 if 'CLOUDPUSHTOKEN' in locals().keys():
-    QMSG_KEY = locals().get('CLOUDPUSHTOKEN')
+    PUSHPLUS_token = locals().get('CLOUDPUSHTOKEN')
 if 'CLOUDAPP_ID' in locals().keys():
     APP_ID = locals().get('CLOUDAPP_ID')
 if 'CLOUDAPI_KEY' in locals().keys():
@@ -241,7 +241,7 @@ class Util:  # 统一的类
         }
         headers = {
             'tenantId': '1019318364515869',  # SWU
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36 okhttp/3.12.4',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36 okhttp/3.12.4 cpdaily/9.0.10 wisedu/9.0.10',
             'CpdailyStandAlone': '0',
             'Cpdaily-Extension': Util.DESEncrypt(json.dumps(extension)),
             'extension': '1',
@@ -259,7 +259,7 @@ class Util:  # 统一的类
             'Host': School_Server_API['host'],
             'Accept': 'application/json, text/plain, */*',
             'X-Requested-With': 'XMLHttpRequest',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/9.0.7 wisedu/9.0.7',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/9.0.10 wisedu/9.0.10',
             'Content-Type': 'application/json',
             'Accept-Encoding': 'gzip,deflate',
             'Accept-Language': 'zh-CN,en-US;q=0.8',
@@ -292,21 +292,23 @@ class Util:  # 统一的类
             # 返回距离开始的时间
             return begin-now
     # 通过pushplus推送消息
-
     @staticmethod
-    def SendMessage(title: str, content: str,):
-        if QMSG_KEY == '':
-            Util.log("未配置QMSG酱，消息不会推送")
+    def SendMessage(title:str,content:str,channel='wechat',ctype='html'):
+        if PUSHPLUS_token == '':
+            Util.log("未配置pushplus的token，消息不会推送")
             return False
-        data = {
-            'token': QMSG_KEY,
-            'msg': title+"\n"+content,
+        data={
+            'token':PUSHPLUS_token,
+            'title':title,
+            'content':content,
+            'channel':channel,
+            'template':ctype
         }
         try:
-            res = requests.post(
-                url='https://qmsg.zendee.cn/send/{}'.format(QMSG_KEY), data=data)
+            res=requests.post(url='http://www.pushplus.plus/send',data=data)
+            Util.log(res.json()['msg'])
         except:
-            Util.log('发送失败')
+            Util.log('消息推送失败')
 
     @staticmethod
     def GenDeviceID(username):
