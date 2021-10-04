@@ -347,9 +347,9 @@ class Util:  # 统一的类
     @staticmethod
     def checkip(ip: str):
         res = requests.get(
-            'http://whois.pconline.com.cn/ipJson.jsp?ip={}&json=true'.format(ip)).json()
+            'http://ip.taobao.com/outGetIpInfo?ip={}&accessKey=alibaba-inc'.format(ip.split(':')[0])).json()
         # 国内ip
-        if res['pro']:
+        if res['data']['country'] == '中国':
             # 检测代理可用性
             try:
                 requests.get(url='http://baidu.com',proxies={'http':'http://{}'.format(ip)},timeout=2)
