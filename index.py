@@ -132,7 +132,7 @@ class Util:  # 统一的类
             return ''
 
     @staticmethod
-    def Login(user, School_Server_API):
+    def Login(user, School_Server_API,useproxy=False):
         loginurl = School_Server_API['login-url']
         # 解析login-url中的协议和host
         info = re.findall('(.*?)://(.*?)/', loginurl)[0]
@@ -151,6 +151,11 @@ class Util:  # 统一的类
         }
         # session存放最终cookies
         session = requests.Session()
+        if useproxy:
+            proxies=Util.getproxy()
+            Util.log("使用代理{}".format(proxies['http']))
+            session.proxies=proxies
+            
         try:
             res = session.get(url=loginurl, headers=headers)
         except:
@@ -323,6 +328,37 @@ class Util:  # 统一的类
                 deviceId = deviceId+chr(num)
         deviceId = deviceId+'XiaomiMI6'
         return deviceId
+    
+    @staticmethod
+    def checkip(ip: str):
+        res = requests.get(
+            'http://whois.pconline.com.cn/ipJson.jsp?ip={}&json=true'.format(ip)).json()
+        # 国内ip
+        if res['pro']:
+            # 检测代理可用性
+            try:
+                requests.get(url='http://baidu.com',proxies={'http':'http://{}'.format(ip)},timeout=2)
+            except:
+                return False
+            return True
+        return False
+    
+    @staticmethod
+    def getproxy():
+        r = True
+        Util.log("获取代理...")
+        while r:
+            res = requests.get("http://demo.spiderpy.cn/get/").json()
+            if not res['https']:
+                continue
+            r = not Util.checkip(res['proxy'])
+            if r:
+                time.sleep(1)
+        res={
+            'http': 'http://{}'.format(res['proxy']),
+            'https':'http://{}'.format(res['proxy'])
+        }
+        return res
 # 任务模板，签到和查寝均继承模板
 
 
@@ -622,7 +658,7 @@ class Attendance(TaskModel):
 
 
 def Do(School_Server_API, user):
-    session = Util.Login(user, School_Server_API)
+    session = Util.Login(user, School_Server_API,useproxy=True)
     if session:
         Util.log('登陆成功')
         userBaseInfo = {
