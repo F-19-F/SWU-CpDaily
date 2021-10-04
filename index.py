@@ -152,20 +152,35 @@ class Util:  # 统一的类
         # session存放最终cookies
         session = requests.Session()
         if useproxy:
-            proxies=Util.getproxy()
-            Util.log("使用代理{}".format(proxies['http']))
-            session.proxies=proxies
-            
-        try:
-            res = session.get(url=loginurl, headers=headers)
-        except:
-            Util.log("学校登录服务器可能宕机了...")
-            return None
-        #获取重定向url中的lt
-        lt = re.findall('_2lBepC=(.*)&*', res.url)
-        if len(lt) == 0:
-            Util.log("获取lt失败")
-            return None
+            while True:
+                proxies=Util.getproxy()
+                Util.log("使用代理{}".format(proxies['http']))
+                session.proxies=proxies
+                try:
+                    res = session.get(url=loginurl, headers=headers,timeout=2)
+                except:
+                    Util.log("代理异常，切换代理")
+                    session = requests.Session()
+                    continue
+                lt = re.findall('_2lBepC=(.*)&*', res.url)
+                # ip被ban
+                if len(lt) == 0:
+                    Util.log("代理被ban，切换新代理")
+                    session = requests.Session()
+                    continue
+                else:
+                    break
+        else:
+            try:
+                res = session.get(url=loginurl, headers=headers,timeout=2)
+            except:
+                Util.log("学校登录服务器可能宕机了...")
+                return None
+            #获取重定向url中的lt
+            lt = re.findall('_2lBepC=(.*)&*', res.url)
+            if len(lt) == 0:
+                Util.log("获取lt失败")
+                return None
         lt = lt[0]
         PostUrl = '{}://{}/iap/doLogin'.format(protocol, host)
         Params = {}
