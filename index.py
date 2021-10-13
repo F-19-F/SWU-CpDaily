@@ -11,6 +11,11 @@ import json
 import re
 import time
 import traceback
+
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 ####################################################
 ##########!!!!!!单用户信息!!!#######################
 ###################################################
@@ -21,6 +26,8 @@ DELAY = 0
 ####################################################
 ###########!!!!!消息推送!!!!!#######################
 ###################################################
+#CLOUDPUSHMAIL 推送打卡日志的邮箱可填可不填
+MAIL_MSG = ''
 # PUSHPLUS推送Key,微信消息推送,不需要消息推送的话可以不填
 PUSHPLUS_token = ''
 # 日志推送级别
@@ -82,6 +89,9 @@ if 'CLOUDSECRET_KEY' in locals().keys():
     SECRET_KEY = locals().get('CLOUDSECRET_KEY')
 if 'CLOUDPUSH_LEVEL' in locals().keys():
     PUSH_LEVEL = locals().get('CLOUDPUSH_LEVEL')
+##用户自定义接收邮箱
+if 'CLOUDPUSHMAIL' in locals().keys():
+    MAIL_MSG = locals().get('CLOUDPUSHMAIL')
 ######################################################
 ############!!!热更新代码结束!!!#######################
 ######################################################
@@ -314,6 +324,32 @@ class Util:  # 统一的类
     # 通过pushplus推送消息
     @staticmethod
     def SendMessage(title:str,content:str,channel='wechat',ctype='html'):
+        #######################################################
+        #################!!!!发送邮箱消息!!!!###################
+        #######################################################
+        if MAIL_MSG == '':
+            Util.log("未配置接收邮箱，消息不会发送")
+        else:
+            mail_host = "smtp.qq.com"         # 设置服务器
+            sender = "jeekate@qq.com"           # 发件人邮箱账号
+            mail_pass = "lrydcmxriceybbjg"    # 发件人邮箱密码 
+            receivers = MAIL_MSG  # 接收邮件，可设置为你的QQ邮箱或者其他邮箱
+
+            msg = MIMEMultipart()
+            msg['From'] = formataddr(["今日校园",sender])
+            msg['To'] = formataddr(["定",receivers])
+            msg['Subject'] = title
+
+            msg.attach(MIMEText(content, 'plain', 'utf-8'))
+            try:
+                smtpObj=smtplib.SMTP_SSL(mail_host, 465)  # 发件人邮箱中的SMTP服务器，端口是25
+                smtpObj.login(sender, mail_pass)  # 括号中对应的是发件人邮箱账号、邮箱密码
+                smtpObj.sendmail(sender,[receivers,],msg.as_string())  # 括号中对应的是发件人邮箱账号、收件人邮箱账号、发送邮件
+                smtpObj.quit()  # 关闭连接
+                Util.log("邮件发送成功")
+            except Exception:  # 如果 try 中的语句没有执行，则会执行下面的 ret=False
+                Util.log("邮件发送失败")
+                
         if PUSHPLUS_token == '':
             Util.log("未配置pushplus的token，消息不会推送")
             return False
