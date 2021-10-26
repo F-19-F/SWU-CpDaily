@@ -38,6 +38,7 @@ SECRET_KEY = '你的SECRET_KEY'
 #################!!!!DES加密密钥!!!!###################
 #######################################################
 DESKEY = 'b3L26XNL'
+AESKEY = 'ytUQ7l2ZZu8mLvJZ'
 APPVERSION = '9.0.12'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
@@ -565,8 +566,28 @@ class TaskModel:
                                  message+" ,请手动签到，等待更新")
             return False
         
-    def GenBodyString(form):
-        return Util.AESEncrypt(json.dumps(form),'ytUQ7l2ZZu8mLvJZ')
+    def GenBodyString(self,form):
+        return Util.AESEncrypt(json.dumps(form),AESKEY)
+    
+    def SignForm(self,realform):
+        tosign={
+            "appVersion":APPVERSION,
+            "bodyString":realform['bodyString'],
+            "deviceId":realform["deviceId"],
+            "lat":realform["lat"],
+            "lon":realform["lon"],
+            "model":realform["model"],
+            "systemName":realform["systemName"],
+            "systemVersion":realform["systemVersion"],
+            "userId":realform["userId"],   
+        }
+        signStr=""
+        for i in tosign:
+            if signStr:
+                signStr+="&"
+            signStr+="{}={}".format(i,tosign[i])
+        signStr+="&{}".format(AESKEY)
+        return hashlib.md5(signStr.encode()).hexdigest()
     
     def GenConfig(self, signedTasksInfo):
         pass
@@ -647,8 +668,6 @@ class Sign(TaskModel):
         realform['appVersion'] = APPVERSION
         realform['systemName'] = "android"
         realform['bodyString'] = self.GenBodyString(form)
-        # 有待分析
-        realform['sign'] = hashlib.md5(json.dumps(form)+"&")
         realform['lon'] = form['longitude']
         realform['calVersion'] = 'firstv'
         realform['model'] = 'MI 6'
@@ -656,7 +675,8 @@ class Sign(TaskModel):
         realform['deviceId'] = self.userBaseInfo['deviceId']
         realform['userId'] = self.userBaseInfo['username']
         realform['version'] = "first_v2"
-        realform['lat'] = form['latitude']        
+        realform['lat'] = form['latitude']
+        realform['sign'] = self.SignForm(realform)
         return realform
 
 
@@ -701,8 +721,6 @@ class Attendance(TaskModel):
         realform['appVersion'] = APPVERSION
         realform['systemName'] = "android"
         realform['bodyString'] = self.GenBodyString(form)
-        # 有待分析
-        realform['sign'] = hashlib.md5(json.dumps(form)+"&")
         realform['lon'] = form['longitude']
         realform['calVersion'] = 'firstv'
         realform['model'] = 'MI 6'
@@ -711,6 +729,7 @@ class Attendance(TaskModel):
         realform['userId'] = self.userBaseInfo['username']
         realform['version'] = "first_v2"
         realform['lat'] = form['latitude']
+        realform['sign'] = self.SignForm(realform)
         return realform
 
 
