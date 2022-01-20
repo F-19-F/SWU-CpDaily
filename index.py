@@ -37,9 +37,9 @@ SECRET_KEY = '你的SECRET_KEY'
 #######################################################
 #################!!!!DES加密密钥!!!!###################
 #######################################################
-DESKEY = 'b3L26XNL'
-AESKEY = 'ytUQ7l2ZZu8mLvJZ'
-APPVERSION = '9.0.12'
+DESKEY = 'XCE927=='
+AESKEY = 'SASEoK4Pa5d4SssO'
+APPVERSION = '9.0.14'
 #######################################################
 ############！！！！获取任务的接口！！！！###############
 #######################################################
@@ -254,7 +254,7 @@ class Util:  # 统一的类
         Encrypted=Encrypter.feed(s)
         Encrypted+=Encrypter.feed()
         return base64.b64encode(Encrypted).decode()
-    
+
 
     @staticmethod
     # 生成带有extension的headers
@@ -272,7 +272,7 @@ class Util:  # 统一的类
         }
         headers = {
             'tenantId': '1019318364515869',  # SWU
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36 okhttp/3.12.4 cpdaily/9.0.12 wisedu/9.0.12',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36 okhttp/3.12.4 cpdaily/9.0.14 wisedu/9.0.14',
             'CpdailyStandAlone': '0',
             'Cpdaily-Extension': Util.DESEncrypt(json.dumps(extension)),
             'extension': '1',
@@ -291,7 +291,7 @@ class Util:  # 统一的类
             'Host': School_Server_API['host'],
             'Accept': 'application/json, text/plain, */*',
             'X-Requested-With': 'XMLHttpRequest',
-            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/9.0.12 wisedu/9.0.12',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 7.1.1; MI 6 Build/NMF26X; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/61.0.3163.98 Mobile Safari/537.36  cpdaily/9.0.14 wisedu/9.0.14',
             'Content-Type': 'application/json',
             'Accept-Encoding': 'gzip,deflate',
             'Accept-Language': 'zh-CN,en-US;q=0.8',
@@ -355,7 +355,7 @@ class Util:  # 统一的类
                 deviceId = deviceId+chr(num)
         deviceId = deviceId+'XiaomiMI6'
         return deviceId
-    
+
     @staticmethod
     def checkip(ip: str):
         res = requests.get(
@@ -369,7 +369,7 @@ class Util:  # 统一的类
                 return False
             return True
         return False
-    
+
     @staticmethod
     def getproxy():
         r = True
@@ -565,10 +565,10 @@ class TaskModel:
                 Util.SendMessage("今日校园自动{}失败".format(self.Showname), "自动签到失败，原因是：" +
                                  message+" ,请手动签到，等待更新")
             return False
-        
+
     def GenBodyString(self,form):
         return Util.AESEncrypt(json.dumps(form),AESKEY)
-    
+
     def SignForm(self,realform):
         tosign={
             "appVersion":APPVERSION,
@@ -579,7 +579,7 @@ class TaskModel:
             "model":realform["model"],
             "systemName":realform["systemName"],
             "systemVersion":realform["systemVersion"],
-            "userId":realform["userId"],   
+            "userId":realform["userId"],
         }
         signStr=""
         for i in tosign:
@@ -588,7 +588,7 @@ class TaskModel:
             signStr+="{}={}".format(i,tosign[i])
         signStr+="&{}".format(AESKEY)
         return hashlib.md5(signStr.encode()).hexdigest()
-    
+
     def GenConfig(self, signedTasksInfo):
         pass
 
@@ -674,7 +674,7 @@ class Sign(TaskModel):
         realform['systemVersion'] = '7.1.1'
         realform['deviceId'] = self.userBaseInfo['deviceId']
         realform['userId'] = self.userBaseInfo['username']
-        realform['version'] = "first_v2"
+        realform['version'] = "first_v3"
         realform['lat'] = form['latitude']
         realform['sign'] = self.SignForm(realform)
         return realform
@@ -727,7 +727,7 @@ class Attendance(TaskModel):
         realform['systemVersion'] = '7.1.1'
         realform['deviceId'] = self.userBaseInfo['deviceId']
         realform['userId'] = self.userBaseInfo['username']
-        realform['version'] = "first_v2"
+        realform['version'] = "first_v3"
         realform['lat'] = form['latitude']
         realform['sign'] = self.SignForm(realform)
         return realform
